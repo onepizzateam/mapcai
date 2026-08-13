@@ -37,6 +37,7 @@ interface FleetState {
 
   // Selection / hover
   selectedBinId: string | null;
+  selectedCountry: string | null;
   hoveredBinId: string | null;
 
   // View
@@ -61,6 +62,7 @@ interface FleetState {
   applyDiff: (diff: FleetDiff) => void;
   selectBin: (id: string | null) => void;
   hoverBin: (id: string | null) => void;
+  selectCountry: (country: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setZoomTier: (tier: number) => void;
   setFilters: (f: Partial<Filters>) => void;
@@ -76,6 +78,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   diffVersion: 0,
 
   selectedBinId: null,
+  selectedCountry: null,
   hoveredBinId: null,
 
   viewMode: 'combined',
@@ -123,6 +126,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   },
 
   selectBin: (id) => set({ selectedBinId: id }),
+  selectCountry: (country) => set({ selectedCountry: country, selectedBinId: null }),
   hoverBin: (id) => set({ hoveredBinId: id }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setZoomTier: (tier) => set({ zoomTier: tier }),

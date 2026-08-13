@@ -101,6 +101,7 @@ function toBin(id: string, h: Hash): BinSummary | null {
     open_exceptions: num(h.open_exceptions),
     alerts_per_1k: num(h.alerts_per_1k),
     region: str(h.region),
+    country: str(h.country, 'Unknown'),
   };
 }
 

@@ -44,6 +44,8 @@ export function useUrlSync(): void {
     hydrated.current = true;
     const region = fromRegionSlug(searchParams.get('region'));
     const status = parseStatus(searchParams.get('status'));
+    const country = searchParams.get('country');
+    if (country) useFleetStore.getState().selectCountry(country);
     if (region || status) {
       useFleetStore.getState().setFilters({ region, status });
     }
@@ -53,10 +55,11 @@ export function useUrlSync(): void {
   //    re-renders its host component when filters change.
   useEffect(() => {
     let lastQuery = '';
-    const write = (region: string | null, status: VehicleStatus | null) => {
+    const write = (region: string | null, status: VehicleStatus | null, country: string | null) => {
       const params = new URLSearchParams();
       if (region) params.set('region', toRegionSlug(region));
       if (status) params.set('status', status);
+      if (country) params.set('country', country);
       const query = params.toString();
       if (query === lastQuery) return;
       lastQuery = query;
@@ -64,16 +67,15 @@ export function useUrlSync(): void {
     };
 
     const { filters } = useFleetStore.getState();
-    lastQuery = new URLSearchParams(
-      Object.entries({
-        ...(filters.region ? { region: toRegionSlug(filters.region) } : {}),
-        ...(filters.status ? { status: filters.status } : {}),
-      })
-    ).toString();
+    const initialParams = new URLSearchParams();
+    if (filters.region) initialParams.set('region', toRegionSlug(filters.region));
+    if (filters.status) initialParams.set('status', filters.status);
+    if (useFleetStore.getState().selectedCountry) initialParams.set('country', useFleetStore.getState().selectedCountry!);
+    lastQuery = initialParams.toString();
 
     return useFleetStore.subscribe((state, prev) => {
-      if (state.filters === prev.filters) return;
-      write(state.filters.region, state.filters.status);
+      if (state.filters === prev.filters && state.selectedCountry === prev.selectedCountry) return;
+      write(state.filters.region, state.filters.status, state.selectedCountry);
     });
   }, [pathname, router]);
 }

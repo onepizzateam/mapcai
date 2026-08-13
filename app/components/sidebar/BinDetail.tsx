@@ -20,6 +20,7 @@ export function BinDetail() {
   const selectedBinId = useFleetStore((s) => s.selectedBinId);
   const statusFilter = useFleetStore((s) => s.filters.status);
   const selectBin = useFleetStore((s) => s.selectBin);
+  const selectCountry = useFleetStore((s) => s.selectCountry);
 
   const [detail, setDetail] = useState<BinDetailPayload | null>(null);
   const [state, setState] = useState<LoadState>('idle');
@@ -86,7 +87,7 @@ export function BinDetail() {
         </div>
         <button
           type="button"
-          onClick={() => selectBin(null)}
+          onClick={() => { selectBin(null); selectCountry(bin.country ?? null); }}
           className="rounded-md border border-border px-2 py-1 text-[11px] text-text-muted hover:border-border-strong hover:text-text-primary"
         >
           Back to regions
@@ -101,6 +102,10 @@ export function BinDetail() {
         <MetricRow label="Average SOH" value={`${bin.avg_soh.toFixed(1)}%`} />
         <MetricRow label="Degradation rate" value={`${(bin.avg_degradation_rate ?? 0).toFixed(1)}%/yr`} />
         <MetricRow label="Energy spend today" value={`₹${(bin.energy_cost_today_inr ?? 0).toLocaleString()}`} />
+        <MetricRow label="Charger utilization" value={`${(bin.charger_utilization_pct ?? 0).toFixed(1)}%`} />
+        <MetricRow label="Fleet efficiency" value={`${(bin.avg_efficiency_km_per_kwh ?? 0).toFixed(2)} km/kWh`} />
+        <MetricRow label="Cost per km" value={`₹${(bin.avg_cost_per_km_inr ?? 0).toFixed(2)}`} />
+        <MetricRow label="Triage estimate" value={`${bin.near_strand_count ?? 0} vehicles <30 min from strand`} />
         <MetricRow
           label="Open exceptions"
           value={`${bin.open_exceptions} open`}

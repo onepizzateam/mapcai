@@ -98,21 +98,23 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
         const primary = d.bins.reduce((a, b) =>
           b.vehicle_count > a.vehicle_count ? b : a
         );
-        getFleetState().selectBin(primary.id);
+        getFleetState().selectCountry(primary.country ?? null);
       })
       .on('mouseenter', (_event, d) => {
         const primary = d.bins[0];
         getFleetState().hoverBin(primary ? primary.id : null);
+        highlightCountry(g, primary?.country ?? null);
       })
-      .on('mouseleave', () => getFleetState().hoverBin(null))
+      .on('mouseleave', () => { getFleetState().hoverBin(null); highlightCountry(g, null); })
       // Keyboard fallback for the hover tooltip (agents.md §6): focus behaves
       // exactly like hover, so the tooltip is reachable without a pointer.
       .on('focus', function (_event, d) {
         const primary = d.bins[0];
         getFleetState().hoverBin(primary ? primary.id : null);
+        highlightCountry(g, primary?.country ?? null);
         moveRovingTabindex(this);
       })
-      .on('blur', () => getFleetState().hoverBin(null))
+      .on('blur', () => { getFleetState().hoverBin(null); highlightCountry(g, null); })
       .on('keydown', function (event: KeyboardEvent, d) {
         handleHexKeydown(event, d, this, gRef.current);
       });
@@ -276,7 +278,7 @@ function handleHexKeydown(
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
     const primary = d.bins.reduce((a, b) => (b.vehicle_count > a.vehicle_count ? b : a));
-    getFleetState().selectBin(primary.id);
+    getFleetState().selectCountry(primary.country ?? null);
     return;
   }
 
@@ -294,6 +296,17 @@ function handleHexKeydown(
     moveRovingTabindex(next);
     next.focus();
   }
+}
+
+function highlightCountry(g: SVGGElement, country: string | null) {
+  const paths = select(g).selectAll<SVGPathElement, HexDatum>('path.hex');
+  const reduced = prefersReducedMotion();
+  paths.each(function (d) {
+    const same = Boolean(country && d.bins[0]?.country === country);
+    const node = select(this);
+    if (reduced) node.interrupt().attr('stroke-width', same ? 1.5 : 0.5);
+    else node.transition().duration(150).attr('stroke-width', same ? 1.5 : 0.5);
+  });
 }
 
 /**

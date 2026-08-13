@@ -6,6 +6,7 @@
 export type VehicleStatus = 'driving' | 'charging' | 'parked' | 'stranded';
 export type ChargeType = 'AC_slow' | 'DC_fast' | 'none';
 export type ThermalStatus = 'normal' | 'elevated' | 'critical';
+export type ExceptionType = 'thermal' | 'charging_fault' | 'gps_dropout' | 'low_soh' | 'low_soc';
 
 /* Region labels are resolved from coordinates at query/render time. */
 
@@ -29,6 +30,10 @@ export interface BinSummary {
   open_exceptions: number;
   alerts_per_1k?: number;
   region: string;
+  country?: string;
+  avg_efficiency_km_per_kwh?: number;
+  avg_cost_per_km_inr?: number;
+  near_strand_count?: number;
 }
 
 /** One vehicle — mirrors Redis hash fleet:vehicle:{id}. */
@@ -50,6 +55,7 @@ export interface Vehicle {
   trips_today?: number;
   km_today?: number;
   uptime_pct?: number;
+  exception_type?: ExceptionType;
   bin_id?: string;
   bin?: string;
   lat: number;
@@ -72,6 +78,10 @@ export interface RegionSummary {
   charging_count?: number;
   energy_cost_today_inr?: number;
   share_pct: number;
+  avg_efficiency_km_per_kwh?: number;
+  avg_cost_per_km_inr?: number;
+  charger_utilization_pct?: number;
+  near_strand_count?: number;
 }
 
 /** Lazy bin-detail payload returned by GET /api/bin/[id]. */
@@ -98,6 +108,11 @@ export interface BinDiff {
   stranded_count?: number;
   critical_soc_count?: number;
   charging_count?: number;
+  energy_cost_today_inr?: number;
+  charger_utilization_pct?: number;
+  avg_efficiency_km_per_kwh?: number;
+  avg_cost_per_km_inr?: number;
+  near_strand_count?: number;
 }
 
 /** The diff document at fleet:latest:diff (30s TTL). */

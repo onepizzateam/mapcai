@@ -5,6 +5,7 @@ import {
   getRedis,
   TREND_WINDOW_HOURS,
 } from './redis';
+import { resolveBinCountries } from './geo/resolveCountry';
 
 // ---------------------------------------------------------------------------
 // Shared seed routine (agents.md §2). Lives in lib/ so scripts/seed.ts (CLI) and
@@ -89,7 +90,18 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
 
   if (options.force || existing) await clearFleet();
 
-  const { bins, vehicles, vehiclesByBin, regions, trends } = generateFleet();
+  const generated = generateFleet();
+  const bins = resolveBinCountries(generated.bins);
+  const { vehicles, vehiclesByBin, regions, trends } = generated;
+  for (const bin of bins) {
+    const members = vehiclesByBin.get(bin.id) ?? [];
+    const km = members.reduce((n, v) => n + (v.km_today ?? 0), 0);
+    const kwh = members.reduce((n, v) => n + (v.energy_consumed_kwh ?? 0), 0);
+    const cost = members.reduce((n, v) => n + (v.energy_cost_inr ?? 0), 0);
+    bin.avg_efficiency_km_per_kwh = kwh > 0 ? km / kwh : 0;
+    bin.avg_cost_per_km_inr = km > 0 ? cost / km : 0;
+    bin.near_strand_count = members.filter((v) => v.soc < 30 && v.status !== 'charging').length;
+  }
 
   // 1. Vehicle hashes. 25k hashes → batched pipelines.
   for (let i = 0; i < vehicles.length; i += BATCH_SIZE) {
@@ -134,6 +146,10 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
         open_exceptions: b.open_exceptions,
         alerts_per_1k: b.alerts_per_1k,
         region: b.region,
+        country: b.country,
+        avg_efficiency_km_per_kwh: b.avg_efficiency_km_per_kwh,
+        avg_cost_per_km_inr: b.avg_cost_per_km_inr,
+        near_strand_count: b.near_strand_count,
       });
       const list = vehiclesByBin.get(b.id) ?? [];
       if (list.length > 0) {

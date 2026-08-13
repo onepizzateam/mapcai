@@ -23,7 +23,7 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
     }
     const pad = 4;
     const xs = data.map((p) => p.hour);
-    const ys = data.map((p) => p.avg_soc ?? p.avg_soh ?? 0);
+    const ys = data.map((p) => p.avg_soh ?? p.avg_soc ?? 0);
     const [x0, x1] = extent(xs) as [number, number];
     const [y0, y1] = extent(ys) as [number, number];
 
@@ -33,15 +33,15 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
 
     const lineGen = line<TrendPoint>()
       .x((p) => x(p.hour))
-      .y((p) => y(p.avg_soc ?? p.avg_soh ?? 0))
+      .y((p) => y(p.avg_soh ?? p.avg_soc ?? 0))
       .curve(curveMonotoneX);
 
     const path = lineGen(data) ?? '';
     const areaPath =
       `${path}L${x(x1)},${height - pad}L${x(x0)},${height - pad}Z`;
 
-    const f = data[0].avg_soc ?? data[0].avg_soh ?? 0;
-    const l = data[data.length - 1].avg_soc ?? data[data.length - 1].avg_soh ?? 0;
+    const f = data[0].avg_soh ?? data[0].avg_soc ?? 0;
+    const l = data[data.length - 1].avg_soh ?? data[data.length - 1].avg_soc ?? 0;
     return { d: path, area: areaPath, first: f, last: l, delta: l - f, min: y0, max: y1 };
   }, [data, width, height]);
 
