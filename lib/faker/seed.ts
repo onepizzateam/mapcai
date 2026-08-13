@@ -218,7 +218,12 @@ export function generateFleet(): GeneratedFleet {
   reseed();
   const bins = generateBins();
   const minimumFleet = 50;
-  const counts = bins.map(() => Math.min(1500, Math.max(50, Math.round(200 * sampleBeta(1.5, 4) * 7.5 + 50))));
+  const targetMean = TOTAL_VEHICLES / BIN_COUNT;
+  const counts = bins.map(() => {
+    const raw = sampleBeta(1.5, 4);
+    const scaled = Math.round((raw / 0.273) * targetMean * 0.7);
+    return Math.min(1500, Math.max(1, scaled));
+  });
   let correction = TOTAL_VEHICLES - counts.reduce((s, n) => s + n, 0);
   for (let i = 0; correction !== 0 && i < counts.length * 2000; i++) {
     const index = i % counts.length;

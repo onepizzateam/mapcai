@@ -178,6 +178,20 @@ describe('generateFleet determinism', () => {
     for (const points of trends.values()) expect(points).toHaveLength(24);
   });
 
+  it('preserves meaningful variation in vehicle counts across bins', () => {
+    const { bins } = generateFleet();
+    const counts = bins.map((bin) => bin.vehicle_count);
+    const mean = counts.reduce((sum, count) => sum + count, 0) / counts.length;
+    const standardDeviation = Math.sqrt(
+      counts.reduce((sum, count) => sum + (count - mean) ** 2, 0) / counts.length,
+    );
+
+    expect(counts.reduce((sum, count) => sum + count, 0)).toBe(TOTAL_VEHICLES);
+    expect(standardDeviation).toBeGreaterThan(25);
+    expect(counts.some((count) => count > 50)).toBe(true);
+    expect(counts.filter((count) => count === 50).length).toBeLessThan(counts.length);
+  });
+
   it('caps and SOC-sorts each per-bin vehicle list', () => {
     const { bins, vehiclesByBin } = generateFleet();
     const list = vehiclesByBin.get(bins[0].id)!;
