@@ -20,18 +20,20 @@ test.beforeEach(async ({ page }) => {
 test('loads overview, filters a region, and drills into a bin', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Fleet overview' })).toBeVisible();
-  await expect(page.getByText('2,000')).toBeVisible();
+  await expect(page.getByRole('banner').getByText('2,000')).toBeVisible();
   await page.getByRole('button', { name: 'Delhi NCR' }).first().click();
   await expect(page.getByRole('button', { name: 'Delhi NCR' }).first()).toHaveAttribute('aria-pressed', 'true');
   const hex = page.locator('path.hex').first();
   await expect(hex).toBeVisible();
   await hex.click();
-  await expect(page.getByText('bin_delhi')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'bin_delhi' })).toBeVisible();
   await expect(page.getByText('EV-LOW')).toBeVisible();
 });
 
 test('shows an actionable empty-store state', async ({ page }) => {
+  await page.unroute('**/api/stream');
+  await page.route('**/api/stream', async (route) => route.abort());
   await page.route('**/api/bins', async (route) => route.fulfill({ status: 503, body: JSON.stringify({ error: 'Fleet data store not configured' }) }));
   await page.goto('/');
-  await expect(page.getByRole('alert')).toContainText('Fleet data is unavailable');
+  await expect(page.locator('[aria-label="Fleet detail"] [role="alert"]')).toContainText('Fleet data is unavailable');
 });

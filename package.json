@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx scripts/seed.ts",
+    "verify:seed": "tsx scripts/verifySeed.ts",
     "test": "vitest run --pool forks --poolOptions.forks.singleFork",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
