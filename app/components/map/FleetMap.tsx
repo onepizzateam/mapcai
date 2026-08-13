@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { select } from 'd3-selection';
-import { geoMercator, geoPath } from 'd3-geo';
+import { geoPath } from 'd3-geo';
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type D3ZoomEvent } from 'd3-zoom';
 import type { Feature, Geometry } from 'geojson';
 import { useIndiaGeo } from './useIndiaGeo';
@@ -33,7 +33,6 @@ export function FleetMap() {
   const tierDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [zoomTransform, setZoomTransform] = useState(zoomIdentity);
 
   const zoomTier = useFleetStore((s) => s.zoomTier);
   const setZoomTier = useFleetStore((s) => s.setZoomTier);
@@ -71,15 +70,7 @@ export function FleetMap() {
     return buildProjection({ width: size.w, height: size.h });
   }, [geo, size.w, size.h]);
 
-  const zoomedProjection = useMemo(() => {
-    if (!projection) return null;
-    return geoMercator().center([78.9629, 22.5937]).scale(projection.scale() * zoomTransform.k).translate([
-      projection.translate()[0] * zoomTransform.k + zoomTransform.x,
-      projection.translate()[1] * zoomTransform.k + zoomTransform.y,
-    ]).precision(0.1);
-  }, [projection, zoomTransform]);
-
-  const pathGen = useMemo(() => (zoomedProjection ? geoPath(zoomedProjection) : null), [zoomedProjection]);
+  const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
   const statePaths = useMemo(() => {
     if (!geo || !pathGen) return [] as { d: string; key: string }[];
@@ -99,7 +90,9 @@ export function FleetMap() {
       .scaleExtent([0.5, 20])
       .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
         // Pure SVG transform — no React state, no recompute.
-        setZoomTransform(event.transform);
+        if (mapLayerRef.current) {
+          select(mapLayerRef.current).attr('transform', event.transform.toString());
+        }
 
         // Only cross-tier changes re-bin. Debounced so a pinch doesn't thrash.
         const nextTierIndex = ZOOM_BREAKPOINTS.indexOf(tierForZoom(event.transform.k));
@@ -164,9 +157,11 @@ export function FleetMap() {
           </g>
 
           {/* Hexbin layer — D3 owns everything inside this <g>. */}
-          {zoomedProjection && (
+          {projection && (
             <HexLayer
-              projection={zoomedProjection}
+              projection={projection}
+              width={size.w}
+              height={size.h}
               radius={tier.radius}
               labelThreshold={tier.labelThreshold}
             />
@@ -177,7 +172,7 @@ export function FleetMap() {
       {/* Overlays (HTML, positioned above the SVG). */}
       <MapControls onZoomIn={() => zoomBy(1.5)} onZoomOut={() => zoomBy(1 / 1.5)} onReset={resetZoom} />
       <HexLegend />
-      <HexTooltip containerRef={containerRef} projection={zoomedProjection} />
+      <HexTooltip containerRef={containerRef} projection={projection} />
     </div>
   );
 }

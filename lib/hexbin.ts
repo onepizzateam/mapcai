@@ -68,14 +68,21 @@ export interface HexDatum {
 export function binHexes(
   data: BinSummary[],
   projection: GeoProjection,
-  radius: number
+  radius: number,
+  width = Infinity,
+  height = Infinity
 ): HexDatum[] {
+  const validPoints = data.filter((d) => {
+    const p = projection([d.lng, d.lat]);
+    return p !== null && p[0] >= 0 && p[0] <= width && p[1] >= 0 && p[1] <= height;
+  });
   const hb = d3Hexbin<BinSummary>()
-    .x((d) => projection([d.lng, d.lat])?.[0] ?? 0)
-    .y((d) => projection([d.lng, d.lat])?.[1] ?? 0)
-    .radius(radius);
+    .x((d) => projection([d.lng, d.lat])![0])
+    .y((d) => projection([d.lng, d.lat])![1])
+    .radius(radius)
+    .extent([[0, 0], [width, height]]);
 
-  return hb(data).map((cell) => {
+  return hb(validPoints).map((cell) => {
     const source = cell as unknown as BinSummary[]; // d3 hexbin cell is an array of data + x/y
     const vehicle_count = source.reduce((s, b) => s + b.vehicle_count, 0);
     const open_exceptions = source.reduce((s, b) => s + b.open_exceptions, 0);

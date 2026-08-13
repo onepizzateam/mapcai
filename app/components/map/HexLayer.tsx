@@ -23,6 +23,8 @@ const TRANSITION_MS = 800;
 
 interface HexLayerProps {
   projection: GeoProjection;
+  width?: number;
+  height?: number;
   radius: number; // from the active zoom tier
   labelThreshold: number;
 }
@@ -34,7 +36,7 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) {
+export function HexLayer({ projection, width = 0, height = 0, radius, labelThreshold }: HexLayerProps) {
   const gRef = useRef<SVGGElement | null>(null);
   // Latest density max, kept available to the out-of-React SSE handler so it
   // can recolour without re-binning. Declared before the effects that use it.
@@ -57,7 +59,7 @@ export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) 
       ? bins.filter((b) => b.region === regionFilter)
       : bins;
 
-    const hexes = binHexes(visible, projection, radius);
+    const hexes = binHexes(visible, projection, radius, width, height);
     const dMax = maxDensity(hexes);
     const mode = getFleetState().viewMode;
     console.log(`[FleetMap] bins received: ${visible.length}`);
@@ -141,7 +143,7 @@ export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) 
     // Stash the current density max + hexes so the SSE subscription can recolour
     // without re-binning.
     lastRenderRef.current = { dMax };
-  }, [bins, regionFilter, projection, radius, labelThreshold, viewMode]);
+  }, [bins, regionFilter, projection, width, height, radius, labelThreshold, viewMode]);
 
   // -------------------------------------------------------------------------
 
