@@ -62,13 +62,6 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
     const hexes = binHexes(visible, projection, radius, width, height);
     const dMax = maxDensity(hexes);
     const mode = getFleetState().viewMode;
-    console.log(`[FleetMap] bins received: ${visible.length}`);
-    console.log('[FleetMap] sample encodings:', hexes.slice(0, 5).map((hex) => ({
-      bins: hex.bins.map((bin) => bin.id),
-      urgency: Number(urgencyFor(hex).toFixed(3)),
-      fill: fillFor(hex, dMax, mode).fill,
-      opacity: Number(fillFor(hex, dMax, mode).fillOpacity.toFixed(3)),
-    })));
     const path = hexPath(radius);
 
     const root = select(g);

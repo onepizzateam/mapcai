@@ -102,13 +102,13 @@ describe('densityOpacity', () => {
 describe('binFill view modes', () => {
   const unhealthyDense = bin(60, 40, 2000);
 
-  it('combined encodes health in hue and density in opacity', () => {
+  it('combined encodes avg SOC, adjusted for stranded pressure, in hue and density in opacity', () => {
     const fill = binFill(unhealthyDense, 1, 'combined');
     expect(fill.fill).toBe(healthColour(0.6 * (1 - 40 / 2000)));
     expect(fill.fillOpacity).toBeCloseTo(OPACITY_MAX, 5);
   });
 
-  it('health only holds opacity flat so hue carries all the signal', () => {
+  it('health only holds opacity flat so the SOC-based hue carries all the signal', () => {
     const dense = binFill(unhealthyDense, 1, 'health');
     const sparse = binFill(unhealthyDense, 0, 'health');
     expect(dense.fillOpacity).toBe(sparse.fillOpacity);
@@ -121,8 +121,8 @@ describe('binFill view modes', () => {
     expect(fill.fillOpacity).toBeCloseTo(densityOpacity(0.5), 5);
   });
 
-  it('gives density-identical bins different hues when health differs', () => {
-    // Restates the §0 gap at the level the D3 layer actually calls.
+  it('gives density-identical bins different hues when avg SOC differs', () => {
+    // Restates the SOC-versus-density distinction at the level the D3 layer actually calls.
     const sick = binFill(bin(60, 40, 2000), 1, 'combined');
     const well = binFill(bin(97, 2, 2000), 1, 'combined');
     expect(sick.fillOpacity).toBeCloseTo(well.fillOpacity, 5);

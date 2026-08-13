@@ -39,20 +39,6 @@ export function FleetMap() {
   const bins = useFleetStore((s) => s.bins);
   const tier = ZOOM_BREAKPOINTS[zoomTier] ?? ZOOM_BREAKPOINTS[0];
 
-  useEffect(() => {
-    bins.slice(0, 10).forEach((bin) => {
-      console.log('BIN DEBUG', JSON.stringify({
-        bin_id: bin.id,
-        vehicle_count: bin.vehicle_count,
-        stranded_count: bin.stranded_count,
-        critical_soc_count: bin.critical_soc_count,
-        raw_urgency:
-          ((bin.stranded_count ?? 0) / Math.max(bin.vehicle_count, 1)) * 0.6 +
-          ((bin.critical_soc_count ?? 0) / Math.max(bin.vehicle_count, 1)) * 0.4,
-      }));
-    });
-  }, [bins]);
-
   // Observe container size for a responsive, fit-to-parent projection.
   useEffect(() => {
     const el = containerRef.current;
