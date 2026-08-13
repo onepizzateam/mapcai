@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useFleetStore, selectSelectedBin } from '@/store/fleetStore';
-import { healthIndex, healthColour } from '@/lib/colourScale';
 import type { BinDetail as BinDetailPayload } from '@/lib/types';
 import { MetricRow } from '../ui/MetricRow';
 import { TrendSparkline } from './TrendSparkline';
@@ -56,9 +55,7 @@ export function BinDetail() {
 
   if (!bin) return null;
 
-  const index = healthIndex(bin);
-  const per1k =
-    bin.vehicle_count > 0 ? (bin.open_exceptions / bin.vehicle_count) * 1000 : 0;
+  const per1k = bin.alerts_per_1k ?? (bin.vehicle_count > 0 ? (bin.open_exceptions / bin.vehicle_count) * 1000 : 0);
 
   return (
     <div className="flex flex-col">
@@ -80,24 +77,18 @@ export function BinDetail() {
       </div>
 
       <section className="border-b border-border p-4">
+        <p className="mb-3 text-xs font-semibold text-text-primary">⚠ {bin.stranded_count ?? 0} stranded · {bin.critical_soc_count ?? 0} critical SOC · {bin.vehicle_count.toLocaleString()} vehicles</p>
         <MetricRow label="Vehicles in bin" value={bin.vehicle_count.toLocaleString()} />
+        <MetricRow label="Avg range remaining" value={`${Math.round(bin.avg_range_km ?? 0)} km`} />
+        <MetricRow label="Avg SOC" value={`${(bin.avg_soc ?? 0).toFixed(0)}%`} />
         <MetricRow label="Average SOH" value={`${bin.avg_soh.toFixed(1)}%`} />
+        <MetricRow label="Degradation rate" value={`${(bin.avg_degradation_rate ?? 0).toFixed(1)}%/yr`} />
+        <MetricRow label="Energy spend today" value={`₹${(bin.energy_cost_today_inr ?? 0).toLocaleString()}`} />
         <MetricRow
           label="Open exceptions"
           value={`${bin.open_exceptions} open`}
           hint={`· ${per1k.toFixed(1)} per 1k vehicles`}
         />
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-xs text-text-muted">Health index</span>
-          <span
-            className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: healthColour(index) }}
-            aria-hidden
-          />
-          <span className="font-mono text-sm tabular-nums text-text-primary">
-            {(index * 100).toFixed(0)}
-          </span>
-        </div>
       </section>
 
       <section className="border-b border-border p-4">

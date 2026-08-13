@@ -23,20 +23,16 @@ import type {
 
 export const SEED = 42;
 export const TOTAL_VEHICLES = 25_000;
-export const BIN_COUNT = 90;
+export const BIN_COUNT = 91;
 export const VEHICLE_LIST_CAP = 50; // per-bin list trimmed to 50 (agents.md §2)
 
 const EV_MODELS = [
-  'Tata Nexon EV',
-  'Tata Tigor EV',
-  'MG ZS EV',
-  'Mahindra XUV400',
-  'Hyundai Kona',
-  'Ola S1 Pro',
-  'Ather 450X',
-  'BYD Atto 3',
-  'Citroen eC3',
+  { name: 'Tata Nexon EV', rated_range: 465 }, { name: 'Tata Tiago EV', rated_range: 315 },
+  { name: 'MG ZS EV', rated_range: 461 }, { name: 'MG Windsor EV', rated_range: 331 },
+  { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
+  { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
 ];
+const ENERGY_COST: Record<RegionName, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7 };
 
 /** Reset faker to the fixed seed. Call once before any generation. */
 export function reseed(): void {
@@ -106,9 +102,15 @@ function sampleSOH(): number {
 
 function sampleStatus(): VehicleStatus {
   const r = faker.number.float({ min: 0, max: 1 });
-  if (r < 0.65) return 'driving';
-  if (r < 0.9) return 'charging';
-  return 'parked';
+  if (r < 0.60) return 'driving';
+  if (r < 0.82) return 'charging';
+  if (r < 0.95) return 'parked';
+  return 'stranded';
+}
+
+function plate(region: RegionName): string {
+  const state = region === 'Delhi NCR' ? 'DL' : region === 'Mumbai' || region === 'Pune' ? 'MH' : region === 'Bangalore' ? 'KA' : region === 'Chennai' ? 'TN' : region === 'Hyderabad' ? 'TS' : region === 'Surat' || region === 'Ahmedabad' ? 'GJ' : 'MH';
+  return `${state}-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${faker.string.alpha({ length: 2, casing: 'upper' })}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
 }
 
 // --- generators -----------------------------------------------------------
@@ -119,21 +121,32 @@ function sampleStatus(): VehicleStatus {
  * Deterministic given the seed.
  */
 export function generateBins(): BinSummary[] {
-  const totalWeight = HOTSPOTS.reduce((s, h) => s + h.weight, 0);
+  // Keep the seeded footprint intentionally broad: many bins per metro make
+  // density visible while preserving the eight named fleet regions.
+  const binsPerRegion: Record<RegionName, number> = {
+    'Delhi NCR': 15,
+    Mumbai: 12,
+    Bangalore: 12,
+    Hyderabad: 10,
+    Chennai: 10,
+    Pune: 10,
+    Surat: 11,
+    Ahmedabad: 11,
+  };
   const bins: BinSummary[] = [];
   let idx = 0;
 
   for (const hs of HOTSPOTS) {
-    const share = hs.weight / totalWeight;
-    const nBins = Math.max(4, Math.round(BIN_COUNT * share));
+    const nBins = binsPerRegion[hs.region];
     for (let i = 0; i < nBins; i++) {
+      const spread = hs.region === 'Delhi NCR' ? 4.0 : 3.4;
       const lat = clamp(
-        hs.lat + gaussian() * 0.35,
+        hs.lat + gaussian() * spread,
         INDIA_BOUNDS.minLat,
         INDIA_BOUNDS.maxLat
       );
       const lng = clamp(
-        hs.lng + gaussian() * 0.35,
+        hs.lng + gaussian() * spread,
         INDIA_BOUNDS.minLng,
         INDIA_BOUNDS.maxLng
       );
@@ -141,15 +154,21 @@ export function generateBins(): BinSummary[] {
         id: `bin_${String(idx).padStart(3, '0')}`,
         lat: round(lat, 4),
         lng: round(lng, 4),
-        vehicle_count: 0, // filled once vehicles are assigned
+        vehicle_count: 0,
+        avg_soc: 0,
         avg_soh: 0,
+        avg_range_km: 0, stranded_count: 0, critical_soc_count: 0,
+        charging_count: 0, driving_count: 0, parked_count: 0,
+        avg_degradation_rate: 0, energy_cost_today_inr: 0,
+        charger_utilization_pct: 0,
         open_exceptions: 0,
+        alerts_per_1k: 0,
         region: hs.region,
       });
       idx++;
     }
   }
-  return bins;
+  return bins.slice(0, BIN_COUNT);
 }
 
 export interface GeneratedFleet {
@@ -168,10 +187,19 @@ export function generateFleet(): GeneratedFleet {
   reseed();
   const bins = generateBins();
   const binWeights = bins.map(() => faker.number.float({ min: 0.4, max: 1 }));
-  const wSum = binWeights.reduce((s, w) => s + w, 0);
-
-  // Distribute the fleet across bins proportional to each bin's weight.
-  const counts = binWeights.map((w) => Math.max(1, Math.round((w / wSum) * TOTAL_VEHICLES)));
+  const minimumFleet = 150;
+  const variableFleet = TOTAL_VEHICLES - bins.length * minimumFleet;
+  const weightTotal = binWeights.reduce((s, w) => s + w, 0);
+  const counts = binWeights.map((w) => minimumFleet + Math.round((w / weightTotal) * variableFleet));
+  let correction = TOTAL_VEHICLES - counts.reduce((s, n) => s + n, 0);
+  for (let i = 0; correction !== 0 && i < counts.length * 2; i++) {
+    const index = i % counts.length;
+    const delta = correction > 0 ? 1 : -1;
+    if (counts[index] + delta >= minimumFleet && counts[index] + delta <= 800) {
+      counts[index] += delta;
+      correction -= delta;
+    }
+  }
 
   const vehicles: Vehicle[] = [];
   const vehiclesByBin = new Map<string, Vehicle[]>();
@@ -180,33 +208,51 @@ export function generateFleet(): GeneratedFleet {
   bins.forEach((bin, bi) => {
     const n = counts[bi];
     const list: Vehicle[] = [];
-    let sohSum = 0;
+    let sohSum = 0, socSum = 0, rangeSum = 0, degradationSum = 0, energyCost = 0;
+    let stranded = 0, critical = 0, charging = 0, driving = 0, parked = 0;
 
     for (let i = 0; i < n; i++) {
-      const soc = round(faker.number.float({ min: 5, max: 100 }), 1);
       const soh = sampleSOH();
+      const model = faker.helpers.arrayElement(EV_MODELS);
+      const effectiveStatus = sampleStatus();
+      const soc = effectiveStatus === 'stranded' ? faker.number.float({ min: 2, max: 7.9 }) : faker.number.float({ min: 5, max: 100 });
+      const degradation = round(clamp(1.8 + gaussian() * 0.8, 0.3, 6), 1);
+      const range = round((soc / 100) * model.rated_range * (soh / 100), 1);
+      const energy = round(faker.number.float({ min: 2, max: 42 }), 1);
       sohSum += soh;
       const v: Vehicle = {
         id: `veh_${String(vid).padStart(6, '0')}`,
-        model: faker.helpers.arrayElement(EV_MODELS),
-        soc,
-        status: sampleStatus(),
+        plate: plate(bin.region), model: model.name, soc, status: effectiveStatus,
         soh,
-        bin: bin.id,
+        degradation_rate: degradation, range_km: range, rated_range_km: model.rated_range,
+        energy_consumed_kwh: energy, energy_cost_inr: round(energy * ENERGY_COST[bin.region], 0),
+        last_charge_duration_min: effectiveStatus === 'charging' ? faker.number.int({ min: 10, max: 180 }) : 0,
+        charge_type: effectiveStatus === 'charging' ? faker.helpers.arrayElement(['AC_slow', 'DC_fast'] as const) : 'none',
+        thermal_status: faker.helpers.weightedArrayElement([{ value: 'normal' as const, weight: 90 }, { value: 'elevated' as const, weight: 8 }, { value: 'critical' as const, weight: 2 }]),
+        trips_today: faker.number.int({ min: 0, max: 8 }), km_today: faker.number.int({ min: 0, max: 220 }), uptime_pct: round(faker.number.float({ min: 88, max: 99.9 }), 1),
+        bin_id: bin.id,
         lat: round(bin.lat + gaussian() * 0.02, 5),
         lng: round(bin.lng + gaussian() * 0.02, 5),
       };
       vehicles.push(v);
       list.push(v);
-      vid++;
+      vid++; socSum += soc; rangeSum += range; degradationSum += degradation; energyCost += v.energy_cost_inr ?? 0;
+      if (soc < 8 && effectiveStatus !== 'charging') stranded++; if (soc < 20) critical++;
+      if (effectiveStatus === 'charging') charging++; else if (effectiveStatus === 'driving') driving++; else if (effectiveStatus === 'parked') parked++;
     }
 
     // Exceptions ~ Poisson(λ=8 per 1,000 vehicles).
     const exceptions = samplePoisson((n / 1000) * 8);
 
     bin.vehicle_count = n;
+    bin.avg_soc = round(socSum / n, 1);
     bin.avg_soh = round(sohSum / n, 1);
+    bin.avg_range_km = round(rangeSum / n, 1); bin.stranded_count = stranded; bin.critical_soc_count = critical;
+    bin.charging_count = charging; bin.driving_count = driving; bin.parked_count = parked;
+    bin.avg_degradation_rate = round(degradationSum / n, 1); bin.energy_cost_today_inr = energyCost;
+    bin.charger_utilization_pct = round((charging / Math.max(1, Math.round(n * 0.3))) * 100, 1);
     bin.open_exceptions = exceptions;
+    bin.alerts_per_1k = round((exceptions / n) * 1000, 1);
 
     // Per-bin list: SOC-ascending (most critical first), capped at 50.
     list.sort((a, b) => a.soc - b.soc);
@@ -221,19 +267,21 @@ export function generateFleet(): GeneratedFleet {
 
 /** Region rollups: totals, alerts-per-1k, and share of fleet. */
 export function rollupRegions(bins: BinSummary[]): RegionSummary[] {
-  const byRegion = new Map<RegionName, { count: number; exc: number }>();
+  const byRegion = new Map<RegionName, { count: number; exc: number; stranded: number; charging: number; energy: number }>();
   for (const b of bins) {
-    const cur = byRegion.get(b.region) ?? { count: 0, exc: 0 };
+    const cur = byRegion.get(b.region) ?? { count: 0, exc: 0, stranded: 0, charging: 0, energy: 0 };
     cur.count += b.vehicle_count;
     cur.exc += b.open_exceptions;
+    cur.stranded += b.stranded_count ?? 0; cur.charging += b.charging_count ?? 0; cur.energy += b.energy_cost_today_inr ?? 0;
     byRegion.set(b.region, cur);
   }
   const total = bins.reduce((s, b) => s + b.vehicle_count, 0) || 1;
-  return Array.from(byRegion.entries()).map(([name, { count, exc }]) => ({
+  return Array.from(byRegion.entries()).map(([name, { count, exc, stranded, charging, energy }]) => ({
     name,
     vehicle_count: count,
     alerts_per_1k: round(count > 0 ? (exc / count) * 1000 : 0, 1),
     share_pct: round((count / total) * 100, 1),
+    stranded_count: stranded, charging_count: charging, energy_cost_today_inr: energy,
   }));
 }
 
@@ -246,11 +294,11 @@ export function backfillTrends(regions: RegionSummary[]): Map<RegionName, TrendP
   const map = new Map<RegionName, TrendPoint[]>();
   for (const r of regions) {
     // Anchor near a plausible fleet SOH; walk backwards 24h.
-    let soh = 88 + gaussian() * 2;
+    let soc = 45 + gaussian() * 8;
     const points: TrendPoint[] = [];
     for (let h = 23; h >= 0; h--) {
-      soh = clamp(soh + gaussian() * 0.4, 70, 99);
-      points.push({ hour: nowHour - h, avg_soh: round(soh, 1) });
+      soc = clamp(soc + gaussian() * 3, 8, 95);
+      points.push({ hour: nowHour - h, avg_soc: round(soc, 1) });
     }
     map.set(r.name, points);
   }

@@ -9,6 +9,10 @@ import { LivePulse } from '../ui/LivePulse';
 
 export function Topbar() {
   const total = useFleetStore((s) => s.totalVehicles);
+  const bins = useFleetStore((s) => s.bins);
+  const stranded = bins.reduce((n, b) => n + (b.stranded_count ?? 0), 0);
+  const charging = bins.reduce((n, b) => n + (b.charging_count ?? 0), 0);
+  const energy = bins.reduce((n, b) => n + (b.energy_cost_today_inr ?? 0), 0);
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4">
@@ -25,6 +29,9 @@ export function Topbar() {
             {total ? total.toLocaleString() : '—'}
           </span>
           <span className="text-xs text-text-muted">vehicles</span>
+          <span className="text-xs text-health-low">🔴 {stranded} stranded</span>
+          <span className="text-xs text-text-muted">⚡ {charging.toLocaleString()} charging</span>
+          <span className="text-xs text-text-muted">₹{(energy / 100000).toFixed(1)}L today</span>
         </div>
         <LivePulse />
       </div>

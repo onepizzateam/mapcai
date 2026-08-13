@@ -37,8 +37,8 @@ const bin = (avg_soh: number, open_exceptions: number, vehicle_count: number) =>
 
 describe('healthIndex', () => {
   it('is avg_SOH × (1 − exception_rate)', () => {
-    // 90% SOH, 10 exceptions across 100 vehicles → 0.9 × (1 − 0.1) = 0.81
-    expect(healthIndex(bin(90, 10, 100))).toBeCloseTo(0.81, 5);
+    // 90% SOH, 10 exceptions per 1,000 → 0.9 × (1 − 0.01) = 0.891
+    expect(healthIndex(bin(90, 10, 100))).toBeCloseTo(0.891, 5);
   });
 
   it('reduces to plain SOH when there are no exceptions', () => {
@@ -52,8 +52,8 @@ describe('healthIndex', () => {
   });
 
   it('clamps pathological input instead of going negative or NaN', () => {
-    // More exceptions than vehicles is a data error, not a reason to crash the map.
-    expect(healthIndex(bin(90, 500, 100))).toBe(0);
+    // Exception pressure is normalized per 1,000 vehicles and remains bounded.
+    expect(healthIndex(bin(90, 500, 100))).toBeCloseTo(0.45, 5);
     expect(healthIndex(bin(90, 0, 0))).toBeCloseTo(0.9, 5);
   });
 });
@@ -104,7 +104,7 @@ describe('binFill view modes', () => {
 
   it('combined encodes health in hue and density in opacity', () => {
     const fill = binFill(unhealthyDense, 1, 'combined');
-    expect(fill.fill).toBe(healthColour(healthIndex(unhealthyDense)));
+    expect(fill.fill).toBe(healthColour(0.6 * (1 - 40 / 2000)));
     expect(fill.fillOpacity).toBeCloseTo(OPACITY_MAX, 5);
   });
 
@@ -112,7 +112,7 @@ describe('binFill view modes', () => {
     const dense = binFill(unhealthyDense, 1, 'health');
     const sparse = binFill(unhealthyDense, 0, 'health');
     expect(dense.fillOpacity).toBe(sparse.fillOpacity);
-    expect(dense.fill).toBe(healthColour(healthIndex(unhealthyDense)));
+    expect(dense.fill).toBe(healthColour(0.6 * (1 - 40 / 2000)));
   });
 
   it('density only drops hue to neutral so opacity carries all the signal', () => {

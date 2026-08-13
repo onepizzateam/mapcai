@@ -238,6 +238,10 @@ function mutateBin(bin: BinSummary, vehicles: Vehicle[], ts: number): MutationRe
   // Vehicle count drifts slightly — vehicles enter and leave a geographic bin.
   const countDelta = Math.round(rand(-3, 3));
   const vehicleCount = Math.max(1, bin.vehicle_count + countDelta);
+  const avgSoc = updated.length > 0 ? round(updated.reduce((sum, v) => sum + v.soc, 0) / updated.length, 1) : (bin.avg_soc ?? 0);
+  const strandedCount = updated.filter((v) => v.soc < 8 && v.status !== 'charging').length;
+  const criticalSocCount = updated.filter((v) => v.soc < 20).length;
+  const chargingCount = updated.filter((v) => v.status === 'charging').length;
 
   return {
     mutation: {
@@ -247,12 +251,14 @@ function mutateBin(bin: BinSummary, vehicles: Vehicle[], ts: number): MutationRe
       avg_soh: avgSoh,
       open_exceptions: openExceptions,
       vehicles: updated,
+      avg_soc: avgSoc, stranded_count: strandedCount, critical_soc_count: criticalSocCount, charging_count: chargingCount,
     },
     diff: {
       id: bin.id,
       vehicle_count: vehicleCount,
       avg_soh: avgSoh,
       open_exceptions: openExceptions,
+      avg_soc: avgSoc, stranded_count: strandedCount, critical_soc_count: criticalSocCount, charging_count: chargingCount,
     },
     alerts,
   };

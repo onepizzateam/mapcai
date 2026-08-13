@@ -7,12 +7,14 @@ const LABEL: Record<VehicleStatus, string> = {
   driving: 'Driving',
   charging: 'Charging',
   parked: 'Parked',
+  stranded: 'Stranded',
 };
 
 const DOT: Record<VehicleStatus, string> = {
   driving: 'bg-driving',
   charging: 'bg-charging',
   parked: 'bg-parked',
+  stranded: 'bg-soc-critical',
 };
 
 export function StatusBadge({ status }: { status: VehicleStatus }) {

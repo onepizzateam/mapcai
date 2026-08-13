@@ -23,7 +23,7 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
     }
     const pad = 4;
     const xs = data.map((p) => p.hour);
-    const ys = data.map((p) => p.avg_soh);
+    const ys = data.map((p) => p.avg_soc ?? p.avg_soh ?? 0);
     const [x0, x1] = extent(xs) as [number, number];
     const [y0, y1] = extent(ys) as [number, number];
 
@@ -33,15 +33,15 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
 
     const lineGen = line<TrendPoint>()
       .x((p) => x(p.hour))
-      .y((p) => y(p.avg_soh))
+      .y((p) => y(p.avg_soc ?? p.avg_soh ?? 0))
       .curve(curveMonotoneX);
 
     const path = lineGen(data) ?? '';
     const areaPath =
       `${path}L${x(x1)},${height - pad}L${x(x0)},${height - pad}Z`;
 
-    const f = data[0].avg_soh;
-    const l = data[data.length - 1].avg_soh;
+    const f = data[0].avg_soc ?? data[0].avg_soh ?? 0;
+    const l = data[data.length - 1].avg_soc ?? data[data.length - 1].avg_soh ?? 0;
     return { d: path, area: areaPath, first: f, last: l, delta: l - f, min: y0, max: y1 };
   }, [data, width, height]);
 
@@ -59,7 +59,7 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-xs text-text-muted">24h avg SOH</span>
+        <span className="text-xs text-text-muted">24h avg SOC</span>
         <span
           className="font-mono text-[11px] tabular-nums"
           style={{ color: stroke }}
@@ -73,7 +73,7 @@ export function TrendSparkline({ data, width = 232, height = 48 }: TrendSparklin
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`24 hour SOH trend, ${first.toFixed(1)} to ${last.toFixed(1)} percent`}
+        aria-label={`24 hour SOC trend, ${first.toFixed(1)} to ${last.toFixed(1)} percent`}
         className="block"
       >
         <path d={area} fill={stroke} fillOpacity={0.1} />

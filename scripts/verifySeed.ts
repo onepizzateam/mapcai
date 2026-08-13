@@ -25,6 +25,9 @@ async function main(): Promise<void> {
   if (ids.length === 0) throw new Error('fleet:bins:index is empty');
 
   const sampleId = ids[0];
+  const binRows = await Promise.all(ids.map((id) => redis.hgetall(`fleet:bin:${id}`) as Promise<Record<string, unknown>>));
+  const strandedTotal = binRows.reduce((sum, row) => sum + Number(row.stranded_count ?? 0), 0);
+  const chargingTotal = binRows.reduce((sum, row) => sum + Number(row.charging_count ?? 0), 0);
   const bin = await redis.hgetall(`fleet:bin:${sampleId}`) as Record<string, unknown>;
   const vehicleIds = await redis.lrange(`fleet:bin:${sampleId}:vehicles`, 0, -1) as string[];
   const vehicle = await redis.hgetall(`fleet:vehicle:${vehicleIds[0]}`) as Record<string, unknown>;
@@ -33,8 +36,8 @@ async function main(): Promise<void> {
   const meta = await redis.hgetall('fleet:meta');
   const version = await redis.get('fleet:seed:version');
 
-  const requiredBinFields = ['lat', 'lng', 'vehicle_count', 'avg_soh', 'open_exceptions', 'region'];
-  const requiredVehicleFields = ['id', 'model', 'soc', 'status', 'soh', 'bin', 'lat', 'lng'];
+  const requiredBinFields = ['lat', 'lng', 'vehicle_count', 'avg_soc', 'avg_soh', 'avg_range_km', 'stranded_count', 'critical_soc_count', 'charging_count', 'avg_degradation_rate', 'energy_cost_today_inr', 'charger_utilization_pct', 'open_exceptions', 'alerts_per_1k', 'region'];
+  const requiredVehicleFields = ['id', 'plate', 'model', 'soc', 'status', 'soh', 'degradation_rate', 'range_km', 'rated_range_km', 'energy_consumed_kwh', 'energy_cost_inr', 'last_charge_duration_min', 'charge_type', 'thermal_status', 'trips_today', 'km_today', 'uptime_pct', 'bin_id', 'lat', 'lng'];
   for (const field of requiredBinFields) if (!(field in bin)) throw new Error(`Missing bin field: ${field}`);
   for (const field of requiredVehicleFields) if (!(field in vehicle)) throw new Error(`Missing vehicle field: ${field}`);
   if (vehicleIds.length > 50) throw new Error(`Vehicle list exceeds cap: ${vehicleIds.length}`);
@@ -42,7 +45,7 @@ async function main(): Promise<void> {
   if (!meta || !('total_vehicles' in meta) || !('last_updated' in meta)) throw new Error('Invalid fleet:meta hash');
   if (version !== 'v1') throw new Error(`Unexpected seed version: ${String(version)}`);
 
-  console.log(JSON.stringify({ bins: ids.length, sampleBin: sampleId, vehicleListSize: vehicleIds.length, trendValues: trend.length / 2, metaPresent: true, seedVersion: version }));
+  console.log(JSON.stringify({ bins: ids.length, sampleBin: sampleId, vehicleListSize: vehicleIds.length, trendValues: trend.length / 2, strandedTotal, chargingTotal, metaPresent: true, seedVersion: version }));
 }
 
 main().catch((error: unknown) => {

@@ -110,6 +110,10 @@ export const useFleetStore = create<FleetState>((set, get) => ({
         bin.vehicle_count = d.vehicle_count;
         bin.avg_soh = d.avg_soh;
         bin.open_exceptions = d.open_exceptions;
+        if (d.avg_soc !== undefined) bin.avg_soc = d.avg_soc;
+        if (d.stranded_count !== undefined) bin.stranded_count = d.stranded_count;
+        if (d.critical_soc_count !== undefined) bin.critical_soc_count = d.critical_soc_count;
+        if (d.charging_count !== undefined) bin.charging_count = d.charging_count;
       }
     }
     set((s) => ({

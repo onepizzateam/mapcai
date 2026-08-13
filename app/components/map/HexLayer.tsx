@@ -59,8 +59,14 @@ export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) 
 
     const hexes = binHexes(visible, projection, radius);
     const dMax = maxDensity(hexes);
-    const path = hexPath(radius);
     const mode = getFleetState().viewMode;
+    console.log(`[FleetMap] bins received: ${visible.length}`);
+    console.log('[FleetMap] sample encodings:', hexes.slice(0, 5).map((hex) => ({
+      bins: hex.bins.map((bin) => bin.id),
+      avgSoc: Number(hex.avg_soc.toFixed(1)),
+      opacity: Number(fillFor(hex, dMax, mode).fillOpacity.toFixed(3)),
+    })));
+    const path = hexPath(radius);
 
     const root = select(g);
 
@@ -179,8 +185,8 @@ export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) 
 // --- helpers -------------------------------------------------------------
 
 function keyFor(d: HexDatum): string {
-  // Stable across ticks: rounded centroid uniquely identifies a hex position.
-  return `${Math.round(d.x)}:${Math.round(d.y)}`;
+  // Stable bin identity, not array position, so joins survive live updates.
+  return d.bins.map((bin) => bin.id).sort().join('|');
 }
 
 function reaggregate(d: HexDatum): HexDatum {
@@ -194,14 +200,20 @@ function reaggregate(d: HexDatum): HexDatum {
   d.vehicle_count = vehicle_count;
   d.open_exceptions = open_exceptions;
   d.avg_soh = avg_soh;
+  d.avg_soc = d.bins.reduce((s, b) => s + (b.avg_soc ?? b.avg_soh ?? 0) * b.vehicle_count, 0) / Math.max(1, vehicle_count);
+  d.stranded_count = d.bins.reduce((s, b) => s + (b.stranded_count ?? 0), 0);
+  d.critical_soc_count = d.bins.reduce((s, b) => s + (b.critical_soc_count ?? 0), 0);
   return d;
 }
 
 function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
   return binFill(
     {
+      avg_soc: d.bins.some((b) => b.avg_soc !== undefined) ? d.avg_soc : undefined,
       avg_soh: d.avg_soh,
       open_exceptions: d.open_exceptions,
+      stranded_count: d.stranded_count,
+      critical_soc_count: d.critical_soc_count,
       vehicle_count: d.vehicle_count,
     },
     d.vehicle_count / dMax,

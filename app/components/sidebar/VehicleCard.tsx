@@ -24,6 +24,7 @@ export function VehicleCard({ vehicle, style }: VehicleCardProps) {
           <span className="truncate font-mono text-[11px] tabular-nums text-text-muted">
             {vehicle.id}
           </span>
+          <span className="font-mono text-[10px] text-text-muted">{vehicle.plate}</span>
           <StatusBadge status={vehicle.status} />
         </div>
         <div className="flex items-center gap-2">
@@ -31,6 +32,7 @@ export function VehicleCard({ vehicle, style }: VehicleCardProps) {
             {vehicle.model}
           </span>
           <SOCBar soc={vehicle.soc} />
+          <span className="font-mono text-[10px] text-text-muted">{Math.round(vehicle.range_km ?? 0)} km</span>
         </div>
       </div>
     </div>

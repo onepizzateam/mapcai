@@ -3,7 +3,9 @@
 // D3 layer, so a single typed source prevents drift. Keeping it in lib/ (not a
 // new top-level dir) stays within the spec's structure.
 
-export type VehicleStatus = 'driving' | 'charging' | 'parked';
+export type VehicleStatus = 'driving' | 'charging' | 'parked' | 'stranded';
+export type ChargeType = 'AC_slow' | 'DC_fast' | 'none';
+export type ThermalStatus = 'normal' | 'elevated' | 'critical';
 
 export type RegionName =
   | 'Delhi NCR'
@@ -21,19 +23,43 @@ export interface BinSummary {
   lat: number;
   lng: number;
   vehicle_count: number;
+  avg_soc?: number;
   avg_soh: number; // 0..100 (percent)
+  avg_range_km?: number;
+  stranded_count?: number;
+  critical_soc_count?: number;
+  charging_count?: number;
+  driving_count?: number;
+  parked_count?: number;
+  avg_degradation_rate?: number;
+  energy_cost_today_inr?: number;
+  charger_utilization_pct?: number;
   open_exceptions: number;
+  alerts_per_1k?: number;
   region: RegionName;
 }
 
 /** One vehicle — mirrors Redis hash fleet:vehicle:{id}. */
 export interface Vehicle {
   id: string;
+  plate?: string;
   model: string;
   soc: number; // 0..100 (percent)
   status: VehicleStatus;
   soh: number; // 0..100 (percent)
-  bin: string;
+  degradation_rate?: number;
+  range_km?: number;
+  rated_range_km?: number;
+  energy_consumed_kwh?: number;
+  energy_cost_inr?: number;
+  last_charge_duration_min?: number;
+  charge_type?: ChargeType;
+  thermal_status?: ThermalStatus;
+  trips_today?: number;
+  km_today?: number;
+  uptime_pct?: number;
+  bin_id?: string;
+  bin?: string;
   lat: number;
   lng: number;
 }
@@ -41,7 +67,8 @@ export interface Vehicle {
 /** One 24h trend sample — decoded from SortedSet fleet:region:{name}:trend. */
 export interface TrendPoint {
   hour: number; // hour-epoch (score)
-  avg_soh: number; // member
+  avg_soc?: number; // member
+  avg_soh?: number; // legacy compatibility for existing fixtures
 }
 
 /** Region rollup — mirrors Redis hash fleet:region:{name}:summary. */
@@ -49,6 +76,9 @@ export interface RegionSummary {
   name: RegionName;
   vehicle_count: number;
   alerts_per_1k: number;
+  stranded_count?: number;
+  charging_count?: number;
+  energy_cost_today_inr?: number;
   share_pct: number;
 }
 
@@ -72,6 +102,10 @@ export interface BinDiff {
   vehicle_count: number;
   avg_soh: number;
   open_exceptions: number;
+  avg_soc?: number;
+  stranded_count?: number;
+  critical_soc_count?: number;
+  charging_count?: number;
 }
 
 /** The diff document at fleet:latest:diff (30s TTL). */

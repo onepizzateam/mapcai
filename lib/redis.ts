@@ -94,8 +94,13 @@ function toBin(id: string, h: Hash): BinSummary | null {
     lat: num(h.lat),
     lng: num(h.lng),
     vehicle_count: num(h.vehicle_count),
+    avg_soc: num(h.avg_soc),
     avg_soh: num(h.avg_soh),
+    avg_range_km: num(h.avg_range_km), stranded_count: num(h.stranded_count), critical_soc_count: num(h.critical_soc_count),
+    charging_count: num(h.charging_count), driving_count: num(h.driving_count), parked_count: num(h.parked_count), avg_degradation_rate: num(h.avg_degradation_rate),
+    energy_cost_today_inr: num(h.energy_cost_today_inr), charger_utilization_pct: num(h.charger_utilization_pct),
     open_exceptions: num(h.open_exceptions),
+    alerts_per_1k: num(h.alerts_per_1k),
     region: str(h.region) as RegionName,
   };
 }
@@ -108,7 +113,10 @@ function toVehicle(h: Hash): Vehicle | null {
     soc: num(h.soc),
     status: str(h.status, 'parked') as VehicleStatus,
     soh: num(h.soh),
-    bin: str(h.bin),
+    plate: str(h.plate), degradation_rate: num(h.degradation_rate), range_km: num(h.range_km), rated_range_km: num(h.rated_range_km),
+    energy_consumed_kwh: num(h.energy_consumed_kwh), energy_cost_inr: num(h.energy_cost_inr), last_charge_duration_min: num(h.last_charge_duration_min),
+    charge_type: str(h.charge_type, 'none') as Vehicle['charge_type'], thermal_status: str(h.thermal_status, 'normal') as Vehicle['thermal_status'],
+    trips_today: num(h.trips_today), km_today: num(h.km_today), uptime_pct: num(h.uptime_pct), bin_id: str(h.bin_id ?? h.bin),
     lat: num(h.lat),
     lng: num(h.lng),
   };
@@ -125,16 +133,16 @@ function toVehicle(h: Hash): Vehicle | null {
  * older data reads cleanly.
  */
 export function encodeTrendMember(point: TrendPoint): string {
-  return `${point.hour}:${point.avg_soh}`;
+  return `${point.hour}:${point.avg_soc ?? point.avg_soh ?? 0}`;
 }
 
 function parseTrendMember(member: unknown, score: number): TrendPoint {
   const raw = str(member);
   const sep = raw.indexOf(':');
   if (sep > -1) {
-    return { hour: num(raw.slice(0, sep), score), avg_soh: num(raw.slice(sep + 1)) };
+    return { hour: num(raw.slice(0, sep), score), avg_soc: num(raw.slice(sep + 1)) };
   }
-  return { hour: score, avg_soh: num(raw) };
+  return { hour: score, avg_soc: num(raw) };
 }
 
 // --- reads ----------------------------------------------------------------
@@ -286,6 +294,7 @@ export interface BinMutation {
   vehicle_count: number;
   avg_soh: number;
   open_exceptions: number;
+  avg_soc?: number; stranded_count?: number; critical_soc_count?: number; charging_count?: number;
   /** Vehicles whose SOC/status changed — rewritten and re-ordered SOC-ascending. */
   vehicles: Vehicle[];
 }
@@ -314,6 +323,10 @@ export async function commitMutations(
       vehicle_count: m.vehicle_count,
       avg_soh: m.avg_soh,
       open_exceptions: m.open_exceptions,
+      ...(m.avg_soc === undefined ? {} : { avg_soc: m.avg_soc }),
+      ...(m.stranded_count === undefined ? {} : { stranded_count: m.stranded_count }),
+      ...(m.critical_soc_count === undefined ? {} : { critical_soc_count: m.critical_soc_count }),
+      ...(m.charging_count === undefined ? {} : { charging_count: m.charging_count }),
     });
 
     for (const v of m.vehicles) {

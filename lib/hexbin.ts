@@ -21,9 +21,9 @@ export interface ZoomTier {
 }
 
 export const ZOOM_BREAKPOINTS: readonly ZoomTier[] = [
-  { maxZoom: 1.5, radius: 28, labelThreshold: Infinity }, // overview
-  { maxZoom: 3.0, radius: 18, labelThreshold: 500 }, // region
-  { maxZoom: Infinity, radius: 10, labelThreshold: 100 }, // city
+  { maxZoom: 1.5, radius: 12, labelThreshold: Infinity }, // overview
+  { maxZoom: 3.0, radius: 10, labelThreshold: 500 }, // region
+  { maxZoom: Infinity, radius: 6, labelThreshold: 100 }, // city
 ] as const;
 
 /** Select the active tier for a given d3-zoom scale factor. */
@@ -51,6 +51,10 @@ export interface HexDatum {
   vehicle_count: number; // summed
   open_exceptions: number; // summed
   avg_soh: number; // vehicle-count-weighted mean
+  avg_soc: number;
+  avg_range_km: number;
+  stranded_count: number;
+  critical_soc_count: number;
 }
 
 /**
@@ -82,6 +86,8 @@ export function binHexes(
         ? source.reduce((s, b) => s + b.avg_soh * b.vehicle_count, 0) / vehicle_count
         : 0;
 
+    const avg_soc = vehicle_count > 0 ? source.reduce((s, b) => s + (b.avg_soc ?? b.avg_soh ?? 0) * b.vehicle_count, 0) / vehicle_count : 0;
+    const avg_range_km = vehicle_count > 0 ? source.reduce((s, b) => s + (b.avg_range_km ?? 0) * b.vehicle_count, 0) / vehicle_count : 0;
     return {
       x: cell.x,
       y: cell.y,
@@ -89,6 +95,9 @@ export function binHexes(
       vehicle_count,
       open_exceptions,
       avg_soh: weightedSoh,
+      avg_soc, avg_range_km,
+      stranded_count: source.reduce((s, b) => s + (b.stranded_count ?? 0), 0),
+      critical_soc_count: source.reduce((s, b) => s + (b.critical_soc_count ?? 0), 0),
     };
   });
 }

@@ -15,8 +15,9 @@ export interface ProjectionInput {
  * precision(0.1) keeps the state outlines crisp without over-tessellating.
  */
 export function buildProjection({ width, height, geo }: ProjectionInput): GeoProjection {
+  const padding = 40;
   return geoMercator()
-    .fitSize([width, height], geo)
+    .fitExtent([[padding, padding], [Math.max(padding, width - padding), Math.max(padding, height - padding)]], geo)
     .precision(0.1);
 }
 

@@ -97,11 +97,15 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
     for (const v of vehicles.slice(i, i + BATCH_SIZE)) {
       pipeline.hset(KEYS.vehicle(v.id), {
         id: v.id,
+        plate: v.plate,
         model: v.model,
         soc: v.soc,
         status: v.status,
         soh: v.soh,
-        bin: v.bin,
+        degradation_rate: v.degradation_rate, range_km: v.range_km, rated_range_km: v.rated_range_km,
+        energy_consumed_kwh: v.energy_consumed_kwh, energy_cost_inr: v.energy_cost_inr, last_charge_duration_min: v.last_charge_duration_min,
+        charge_type: v.charge_type, thermal_status: v.thermal_status, trips_today: v.trips_today, km_today: v.km_today, uptime_pct: v.uptime_pct,
+        bin_id: v.bin_id,
         lat: v.lat,
         lng: v.lng,
       });
@@ -117,8 +121,13 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
         lat: b.lat,
         lng: b.lng,
         vehicle_count: b.vehicle_count,
+        avg_soc: b.avg_soc,
         avg_soh: b.avg_soh,
+        avg_range_km: b.avg_range_km, stranded_count: b.stranded_count, critical_soc_count: b.critical_soc_count,
+        charging_count: b.charging_count, driving_count: b.driving_count, parked_count: b.parked_count, avg_degradation_rate: b.avg_degradation_rate,
+        energy_cost_today_inr: b.energy_cost_today_inr, charger_utilization_pct: b.charger_utilization_pct,
         open_exceptions: b.open_exceptions,
+        alerts_per_1k: b.alerts_per_1k,
         region: b.region,
       });
       const list = vehiclesByBin.get(b.id) ?? [];
