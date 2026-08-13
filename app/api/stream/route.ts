@@ -13,6 +13,9 @@ import type { BinsSnapshot } from '@/lib/types';
 // putting the mutation loop here would give each connected client its own writer
 // (two tabs = 2× write rate, uncoordinated), which is broken at two users.
 //
+// Demo exception: the connect-time kick below invokes the writer once; all
+// ongoing stream work remains read-only and mutation logic stays in /api/writer.
+//
 // Node runtime, not Edge: SSE needs a persistent connection an Edge function
 // can't hold open.
 //
@@ -83,6 +86,29 @@ export async function GET(request: Request) {
 
       // Client navigated away / EventSource closed.
       request.signal.addEventListener('abort', close);
+
+      // Demo-mode initial kick: invoke the single writer once per SSE
+      // connection so opening the app produces fresh data immediately. The
+      // writer retains QStash Receiver verification for real deliveries; this
+      // path intentionally uses its manual-test secret fallback.
+      try {
+        const host = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'http://localhost:3000';
+        const writerResponse = await fetch(`${host}/api/writer`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-writer-secret': process.env.WRITER_SECRET ?? '',
+          },
+          body: '{}',
+        });
+        if (!writerResponse.ok) {
+          // A missing demo secret or transient writer failure is non-fatal.
+        }
+      } catch {
+        // Snapshot and diff polling remain available if the initial kick fails.
+      }
 
       // 1. On connect: full snapshot, so a late joiner is immediately correct
       //    without waiting for the next diff (§5).

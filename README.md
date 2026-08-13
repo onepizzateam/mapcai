@@ -18,11 +18,11 @@ The app opens at `http://localhost:3000`. Seeding is idempotent; use `npm run se
 - Hex fill hue encodes health (`avg SOH × (1 − exception rate)`); opacity encodes density. The legend isolates either channel.
 - Zustand holds selection and filters. D3 owns the hex DOM and applies SSE diffs without React reconciliation or re-binning.
 - `/api/bins` reads bin summaries. `/api/bin/:id` lazily reads one bin's capped, SOC-ascending vehicles and 24-hour regional trend.
-- `/api/writer` is the only mutation route. It uses QStash or `WRITER_SECRET`, a Redis lock, and a short-lived diff document. `/api/stream` is a pure SSE reader.
+- `/api/writer` is the only mutation route. It uses QStash or `WRITER_SECRET`, a Redis lock, and a short-lived diff document. `/api/stream` triggers one authenticated writer request on connect for demo freshness, then remains a pure SSE diff reader.
 
 ## Realtime setup
 
-Configure a QStash schedule to POST to `/api/writer` with the signing keys in the environment. The free tier's minimum schedule interval is 60 seconds; the SSE reader polls the diff every 5 seconds. Pay-as-you-go supports a 1-second minimum.
+For demo purposes, the SSE connection triggers the writer once when a reviewer opens the app, then polls diffs every 5 seconds. To enable a real schedule, create a QStash cron pointing at `/api/writer` with the signed webhook path and keep `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` configured. The QStash Receiver verification remains enabled for those deliveries.
 
 ## Checks
 
