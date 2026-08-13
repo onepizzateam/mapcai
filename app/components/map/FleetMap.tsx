@@ -103,6 +103,7 @@ export function FleetMap() {
       });
 
     select(svg).call(zoomBehavior);
+    select(svg).call(zoomBehavior.transform, zoomIdentity.scale(3.5));
     zoomRef.current = zoomBehavior;
 
     return () => {
