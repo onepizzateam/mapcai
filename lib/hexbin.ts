@@ -22,8 +22,8 @@ export interface ZoomTier {
 
 export const ZOOM_BREAKPOINTS: readonly ZoomTier[] = [
   { maxZoom: 1.5, radius: 28, labelThreshold: Infinity }, // overview
-  { maxZoom: 4.0, radius: 18, labelThreshold: 500 }, // region
-  { maxZoom: Infinity, radius: 10, labelThreshold: 100 }, // city
+  { maxZoom: 3.5, radius: 16, labelThreshold: 500 }, // region
+  { maxZoom: Infinity, radius: 8, labelThreshold: 100 }, // city
 ] as const;
 
 /** Select the active tier for a given d3-zoom scale factor. */

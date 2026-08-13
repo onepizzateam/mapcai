@@ -11,8 +11,8 @@ export interface ProjectionInput {
  */
 export function buildProjection({ width, height }: ProjectionInput): GeoProjection {
   return geoMercator()
-    .center([78.9629, 22.5937])
-    .scale(180)
+    .center([82.0, 22.5])
+    .scale(1100)
     .translate([width / 2, height / 2])
     .precision(0.1);
 }

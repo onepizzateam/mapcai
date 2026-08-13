@@ -87,7 +87,7 @@ export function FleetMap() {
     if (!svg || !layer) return;
 
     const zoomBehavior = d3zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.5, 20])
+      .scaleExtent([0.15, 20])
       .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
         // Pure SVG transform — no React state, no recompute.
         if (mapLayerRef.current) {
@@ -103,7 +103,6 @@ export function FleetMap() {
       });
 
     select(svg).call(zoomBehavior);
-    select(svg).call(zoomBehavior.transform, zoomIdentity.scale(3.5));
     zoomRef.current = zoomBehavior;
 
     return () => {
