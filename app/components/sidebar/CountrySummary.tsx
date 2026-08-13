@@ -16,16 +16,34 @@ export function CountrySummary() {
   const selectBin = useFleetStore((s) => s.selectBin);
   const [countries, setCountries] = useState<Record<string, string>>(() => Object.fromEntries(bins.map((b) => [b.id, approximateCountry(b.lat, b.lng)])));
   const [detail, setDetail] = useState<BinDetail | null>(null);
+  const [city, setCity] = useState('');
 
   useEffect(() => {
     if (!selectedBinId) return;
+    const bin = bins.find((item) => item.id === selectedBinId);
+    if (!bin) return;
     const controller = new AbortController();
+    const fallback = bin.region || `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`;
+    setCity(fallback);
     fetch(`/api/bin/${encodeURIComponent(selectedBinId)}`, { signal: controller.signal })
       .then((r) => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
       .then((data: BinDetail) => setDetail(data))
       .catch((error: unknown) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setDetail(null); });
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const url = token
+      ? `https://api.mapbox.com/geocoding/v5/mapbox.places/${bin.lng},${bin.lat}.json?types=place,locality,region&limit=1&access_token=${encodeURIComponent(token)}`
+      : `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${bin.lat}&lon=${bin.lng}`;
+    fetch(url, { signal: controller.signal, headers: token ? undefined : { Accept: 'application/json' } })
+      .then((r) => r.json())
+      .then((data) => {
+        const resolved = token
+          ? data.features?.[0]?.text ?? data.features?.[0]?.place_name
+          : data.address?.city ?? data.address?.town ?? data.address?.municipality ?? data.address?.village;
+        if (resolved) setCity(resolved);
+      })
+      .catch(() => undefined);
     return () => controller.abort();
-  }, [selectedBinId]);
+  }, [bins, selectedBinId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +77,7 @@ export function CountrySummary() {
     <div className="flex items-center justify-between"><div><p className="text-[10px] uppercase tracking-wide text-text-muted">Country analytics</p><h2 className="text-base font-semibold text-text-primary">{country}</h2></div><button type="button" onClick={() => selectBin(null)} className="rounded-md border border-border px-2 py-1 text-[11px] text-text-muted">Back to overview</button></div>
     <section className="rounded-lg border border-border bg-bg p-3"><MetricRow label="Open exceptions" value={`${exceptions} open`} hint={`· ${total ? (exceptions / total * 1000).toFixed(1) : '0.0'} per 1k`} /><MetricRow label="Share of fleet" value={`${fleet ? (total / fleet * 100).toFixed(1) : '0.0'}%`} hint={`· ${total.toLocaleString()} vehicles`} /></section>
     <section><h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted">{country} zones</h3>{zones.map((z) => <div key={z.name} className="mb-3"><div className="flex justify-between text-xs"><span>{z.name}</span><span className="font-mono">{z.share.toFixed(1)}%</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-border"><div className="h-full rounded-full bg-accent" style={{ width: `${z.share}%` }} /></div><p className="mt-1 text-[10px] text-text-muted">{z.vehicles.toLocaleString()} vehicles · {z.vehicles ? (z.alerts / z.vehicles * 1000).toFixed(1) : '0.0'} alerts/1k</p></div>)}</section>
-    <section className="border-t border-border pt-4"><p className="text-[10px] uppercase tracking-wide text-text-muted">Selected bin</p><div className="mt-1 flex items-end justify-between"><div><p className="text-3xl font-semibold tracking-tight text-text-primary">{bin.vehicle_count.toLocaleString()}</p><p className="text-xs text-text-muted">vehicles · Near {bin.region}</p></div><span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-medium text-accent">{binShare.toFixed(1)}% of fleet</span></div><div className="mt-3 grid grid-cols-2 gap-2">{[["Vehicles", bin.vehicle_count.toLocaleString()], ["Avg SOH", `${bin.avg_soh.toFixed(1)}%`], ["Avg range remaining", `${Math.round(bin.avg_range_km ?? 0)} km`], ["Avg SOC", `${(bin.avg_soc ?? 0).toFixed(1)}%`], ["Degradation rate", `${(bin.avg_degradation_rate ?? 0).toFixed(1)}%/yr`], ["Energy spend today", `₹${(bin.energy_cost_today_inr ?? 0).toLocaleString()}`], ["Open exceptions", `${bin.open_exceptions} · ${bin.vehicle_count ? (bin.open_exceptions / bin.vehicle_count * 1000).toFixed(1) : '0.0'}/1k`], ["Share of fleet", `${binShare.toFixed(1)}%`]].map(([label, value]) => <div key={label} className="rounded-md border border-border bg-surface p-2"><p className="text-[10px] text-text-muted">{label}</p><p className="mt-1 font-mono text-sm tabular-nums text-text-primary">{value}</p></div>)}</div></section>
+    <section className="border-t border-border pt-4"><p className="text-[10px] uppercase tracking-wide text-text-muted">Selected bin</p><div className="mt-1 flex items-end justify-between"><div><p className="text-3xl font-semibold tracking-tight text-text-primary">{bin.vehicle_count.toLocaleString()}</p><p className="text-xs text-text-muted">vehicles · Near {city || bin.region || `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`}</p></div><span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-medium text-accent">{binShare.toFixed(1)}% of fleet</span></div><div className="mt-3 grid grid-cols-2 gap-2">{[["Vehicles", bin.vehicle_count.toLocaleString()], ["Avg SOH", `${bin.avg_soh.toFixed(1)}%`], ["Avg range remaining", `${Math.round(bin.avg_range_km ?? 0)} km`], ["Avg SOC", `${(bin.avg_soc ?? 0).toFixed(1)}%`], ["Degradation rate", `${(bin.avg_degradation_rate ?? 0).toFixed(1)}%/yr`], ["Energy spend today", `₹${(bin.energy_cost_today_inr ?? 0).toLocaleString()}`], ["Open exceptions", `${bin.open_exceptions} · ${bin.vehicle_count ? (bin.open_exceptions / bin.vehicle_count * 1000).toFixed(1) : '0.0'}/1k`], ["Share of fleet", `${binShare.toFixed(1)}%`]].map(([label, value]) => <div key={label} className="rounded-md border border-border bg-surface p-2"><p className="text-[10px] text-text-muted">{label}</p><p className="mt-1 font-mono text-sm tabular-nums text-text-primary">{value}</p></div>)}</div></section>
     <SocTrend detail={detail} />
     <VehicleSection detail={detail} />
   </div>;
