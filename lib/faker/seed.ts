@@ -22,8 +22,8 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const SEED = 42;
-export const TOTAL_VEHICLES = 25_000;
-export const BIN_COUNT = 91;
+export const TOTAL_VEHICLES = 40_000;
+export const BIN_COUNT = 156;
 export const VEHICLE_LIST_CAP = 50; // per-bin list trimmed to 50 (agents.md §2)
 
 const EV_MODELS = [
@@ -32,7 +32,7 @@ const EV_MODELS = [
   { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
   { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
 ];
-const ENERGY_COST: Record<RegionName, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7 };
+const ENERGY_COST: Record<RegionName, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7, Dubai: 8.8, Singapore: 10.2, London: 12.4, 'São Paulo': 7.1 };
 
 /** Reset faker to the fixed seed. Call once before any generation. */
 export function reseed(): void {
@@ -124,14 +124,18 @@ export function generateBins(): BinSummary[] {
   // Keep the seeded footprint intentionally broad: many bins per metro make
   // density visible while preserving the eight named fleet regions.
   const binsPerRegion: Record<RegionName, number> = {
-    'Delhi NCR': 15,
-    Mumbai: 12,
-    Bangalore: 12,
-    Hyderabad: 10,
-    Chennai: 10,
+    'Delhi NCR': 18,
+    Mumbai: 14,
+    Bangalore: 14,
+    Hyderabad: 12,
+    Chennai: 12,
     Pune: 10,
-    Surat: 11,
-    Ahmedabad: 11,
+    Surat: 8,
+    Ahmedabad: 8,
+    Dubai: 16,
+    Singapore: 14,
+    London: 16,
+    'São Paulo': 14,
   };
   const bins: BinSummary[] = [];
   let idx = 0;
@@ -178,8 +182,11 @@ export interface GeneratedFleet {
 export function generateFleet(): GeneratedFleet {
   reseed();
   const bins = generateBins();
-  const binWeights = bins.map(() => faker.number.float({ min: 0.4, max: 1 }));
-  const minimumFleet = 150;
+  const binWeights = bins.map((_bin, index) => {
+    const base = faker.number.float({ min: 0.4, max: 1 });
+    return index % 17 === 0 ? base * 5 : base;
+  });
+  const minimumFleet = 80;
   const variableFleet = TOTAL_VEHICLES - bins.length * minimumFleet;
   const weightTotal = binWeights.reduce((s, w) => s + w, 0);
   const counts = binWeights.map((w) => minimumFleet + Math.round((w / weightTotal) * variableFleet));
@@ -187,7 +194,7 @@ export function generateFleet(): GeneratedFleet {
   for (let i = 0; correction !== 0 && i < counts.length * 2; i++) {
     const index = i % counts.length;
     const delta = correction > 0 ? 1 : -1;
-    if (counts[index] + delta >= minimumFleet && counts[index] + delta <= 800) {
+    if (counts[index] + delta >= minimumFleet && counts[index] + delta <= 1200) {
       counts[index] += delta;
       correction -= delta;
     }
@@ -206,7 +213,9 @@ export function generateFleet(): GeneratedFleet {
     for (let i = 0; i < n; i++) {
       const soh = sampleSOH();
       const model = faker.helpers.arrayElement(EV_MODELS);
-      const effectiveStatus = sampleStatus();
+      // Every tenth bin is an intentionally severe triage cluster so the
+      // urgency scale visibly exercises its red end in the seeded demo.
+      const effectiveStatus = bi % 10 === 0 ? 'stranded' : sampleStatus();
       const soc = effectiveStatus === 'stranded' ? faker.number.float({ min: 2, max: 7.9 }) : faker.number.float({ min: 5, max: 100 });
       const degradation = round(clamp(1.8 + gaussian() * 0.8, 0.3, 6), 1);
       const range = round((soc / 100) * model.rated_range * (soh / 100), 1);

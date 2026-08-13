@@ -15,7 +15,11 @@ export type RegionName =
   | 'Chennai'
   | 'Pune'
   | 'Surat'
-  | 'Ahmedabad';
+  | 'Ahmedabad'
+  | 'Dubai'
+  | 'Singapore'
+  | 'London'
+  | 'São Paulo';
 
 /** One hex bin summary — mirrors Redis hash fleet:bin:{id}. */
 export interface BinSummary {

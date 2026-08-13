@@ -64,6 +64,10 @@ export interface FillResult {
   fillOpacity: number;
 }
 
+export interface BinFillInput extends Pick<BinSummary, 'avg_soc' | 'avg_soh' | 'open_exceptions' | 'stranded_count' | 'critical_soc_count' | 'vehicle_count'> {
+  urgencyOverride?: number;
+}
+
 /**
  * Single entry point the D3 layer calls per hex. Branches on view mode — three
  * fill-function branches behind one Zustand flag (agents.md §6):
@@ -73,12 +77,12 @@ export interface FillResult {
  *   density  → hue = neutral, opacity = density   (isolate density)
  */
 export function binFill(
-  bin: Pick<BinSummary, 'avg_soc' | 'avg_soh' | 'open_exceptions' | 'stranded_count' | 'critical_soc_count' | 'vehicle_count'>,
+  bin: BinFillInput,
   densityNorm: number,
   mode: ViewMode
 ): FillResult {
   const count = Math.max(1, bin.vehicle_count);
-  const urgency = clamp01(((bin.stranded_count ?? 0) / count) * 0.6 + ((bin.critical_soc_count ?? 0) / count) * 0.4);
+  const urgency = clamp01(bin.urgencyOverride ?? (((bin.stranded_count ?? 0) / count) * 0.6 + ((bin.critical_soc_count ?? 0) / count) * 0.4));
   switch (mode) {
     case 'health':
       return { fill: healthColour(urgency), fillOpacity: OPACITY_MAX };

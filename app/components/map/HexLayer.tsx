@@ -208,6 +208,14 @@ function reaggregate(d: HexDatum): HexDatum {
 }
 
 function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
+  // At overview zoom, a hex can aggregate several source bins. Preserve the
+  // most urgent source-bin signal so a stranded cluster cannot disappear into
+  // a harmless-looking weighted average.
+  const peakUrgency = d.bins.reduce((peak, bin) => {
+    const count = Math.max(1, bin.vehicle_count);
+    const urgency = ((bin.stranded_count ?? 0) / count) * 0.6 + ((bin.critical_soc_count ?? 0) / count) * 0.4;
+    return Math.max(peak, Math.min(1, Math.max(0, urgency)));
+  }, 0);
   return binFill(
     {
       avg_soc: d.bins.some((b) => b.avg_soc !== undefined) ? d.avg_soc : undefined,
@@ -216,6 +224,7 @@ function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
       stranded_count: d.stranded_count,
       critical_soc_count: d.critical_soc_count,
       vehicle_count: d.vehicle_count,
+      urgencyOverride: peakUrgency,
     },
     d.vehicle_count / 800,
     mode

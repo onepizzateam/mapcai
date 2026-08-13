@@ -22,6 +22,10 @@ export const HOTSPOTS: readonly Hotspot[] = [
   { region: 'Pune', lat: 18.5204, lng: 73.8567, weight: 0.6 },
   { region: 'Surat', lat: 21.1702, lng: 72.8311, weight: 0.45 },
   { region: 'Ahmedabad', lat: 23.0225, lng: 72.5714, weight: 0.5 },
+  { region: 'Dubai', lat: 25.2048, lng: 55.2708, weight: 0.7 },
+  { region: 'Singapore', lat: 1.3521, lng: 103.8198, weight: 0.65 },
+  { region: 'London', lat: 51.5072, lng: -0.1276, weight: 0.8 },
+  { region: 'São Paulo', lat: -23.5505, lng: -46.6333, weight: 0.75 },
 ] as const;
 
 export const REGION_NAMES: readonly RegionName[] = HOTSPOTS.map((h) => h.region);
@@ -35,6 +39,10 @@ export const REGION_BOUNDS: Record<RegionName, { latMin: number; latMax: number;
   Pune: { latMin: 18.42, latMax: 18.62, lngMin: 73.76, lngMax: 73.97 },
   Surat: { latMin: 21.10, latMax: 21.28, lngMin: 72.77, lngMax: 72.93 },
   Ahmedabad: { latMin: 22.95, latMax: 23.13, lngMin: 72.49, lngMax: 72.68 },
+  Dubai: { latMin: 25.04, latMax: 25.35, lngMin: 55.10, lngMax: 55.55 },
+  Singapore: { latMin: 1.24, latMax: 1.46, lngMin: 103.68, lngMax: 103.95 },
+  London: { latMin: 51.38, latMax: 51.62, lngMin: -0.35, lngMax: 0.15 },
+  'São Paulo': { latMin: -23.72, latMax: -23.43, lngMin: -46.82, lngMax: -46.37 },
 };
 
 /** India geographic bounds — a guard so scattered bins stay on-shore-ish. */

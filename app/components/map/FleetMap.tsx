@@ -37,7 +37,22 @@ export function FleetMap() {
 
   const zoomTier = useFleetStore((s) => s.zoomTier);
   const setZoomTier = useFleetStore((s) => s.setZoomTier);
+  const bins = useFleetStore((s) => s.bins);
   const tier = ZOOM_BREAKPOINTS[zoomTier] ?? ZOOM_BREAKPOINTS[0];
+
+  useEffect(() => {
+    bins.slice(0, 10).forEach((bin) => {
+      console.log('BIN DEBUG', JSON.stringify({
+        bin_id: bin.id,
+        vehicle_count: bin.vehicle_count,
+        stranded_count: bin.stranded_count,
+        critical_soc_count: bin.critical_soc_count,
+        raw_urgency:
+          ((bin.stranded_count ?? 0) / Math.max(bin.vehicle_count, 1)) * 0.6 +
+          ((bin.critical_soc_count ?? 0) / Math.max(bin.vehicle_count, 1)) * 0.4,
+      }));
+    });
+  }, [bins]);
 
   // Observe container size for a responsive, fit-to-parent projection.
   useEffect(() => {
@@ -81,7 +96,7 @@ export function FleetMap() {
     if (!svg || !layer) return;
 
     const zoomBehavior = d3zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 8])
+      .scaleExtent([0.5, 20])
       .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
         // Pure SVG transform — no React state, no recompute.
         setZoomTransform(event.transform);
@@ -133,6 +148,13 @@ export function FleetMap() {
         aria-label="Map of India showing fleet health by region"
         className="block h-full w-full touch-none"
       >
+        <rect
+          className="map-pointer-capture"
+          width={size.w}
+          height={size.h}
+          fill="transparent"
+          pointerEvents="all"
+        />
         <g ref={mapLayerRef} className="map-layer">
           {/* State outlines — static chrome, drawn once per projection. */}
           <g className="states" fill="var(--color-surface)" stroke="#e2e8f0" strokeWidth={0.5}>
