@@ -1,4 +1,8 @@
 import { faker } from '@faker-js/faker';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { feature } from 'topojson-client';
+import type { Topology } from 'topojson-specification';
 import type {
   BinSummary,
   Vehicle,
@@ -6,6 +10,48 @@ import type {
   TrendPoint,
   VehicleStatus,
 } from '@/lib/types';
+
+// Loaded lazily so this module remains usable in browser/runtime bundles. The
+// land check is only exercised by the seed generators.
+let _landPolygons: Array<{ type: string; coordinates: number[][][][] }> | null = null;
+
+function getLandPolygons() {
+  if (_landPolygons) return _landPolygons;
+  const topo = JSON.parse(
+    readFileSync(join(process.cwd(), 'node_modules/world-atlas/land-110m.json'), 'utf-8'),
+  ) as Topology;
+  const geojson = feature(topo, topo.objects.land as any) as any;
+  _landPolygons = geojson.features
+    ? geojson.features.map((f: any) => f.geometry)
+    : [geojson.geometry];
+  return _landPolygons!;
+}
+
+function pointInPolygon(lat: number, lng: number, coords: number[][][]): boolean {
+  let inside = false;
+  for (const ring of coords) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+  }
+  return inside;
+}
+
+function isOnLand(lat: number, lng: number): boolean {
+  for (const geom of getLandPolygons()) {
+    const coords = geom.type === 'Polygon'
+      ? geom.coordinates
+      : geom.type === 'MultiPolygon'
+        ? geom.coordinates.flat(1)
+        : [];
+    if (pointInPolygon(lat, lng, coords as number[][][])) return true;
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Deterministic fleet data generation (agents.md §2). faker.seed(42) makes the
@@ -122,8 +168,21 @@ export function generateBins(): BinSummary[] {
   const bins: BinSummary[] = [];
   for (let i = 0; i < BIN_COUNT; i++) {
       const isIndia = faker.number.float({ min: 0, max: 1 }) < 0.70;
-      const lat = faker.number.float({ min: isIndia ? INDIA.latMin : -55, max: isIndia ? INDIA.latMax : 70 });
-      const lng = faker.number.float({ min: isIndia ? INDIA.lngMin : -180, max: isIndia ? INDIA.lngMax : 180 });
+      let lat: number;
+      let lng: number;
+      let attempts = 0;
+      do {
+        lat = faker.number.float({ min: isIndia ? INDIA.latMin : -55, max: isIndia ? INDIA.latMax : 70 });
+        lng = faker.number.float({ min: isIndia ? INDIA.lngMin : -180, max: isIndia ? INDIA.lngMax : 180 });
+        attempts++;
+      } while (!isOnLand(lat, lng) && attempts < 50);
+
+      // Delhi is a safe deterministic fallback if repeated sampling misses
+      // land (for example, near a narrow coastal/island region).
+      if (!isOnLand(lat, lng)) {
+        lat = 28.6139;
+        lng = 77.2090;
+      }
       bins.push({
         id: `bin_${String(i).padStart(3, '0')}`,
         lat: round(lat, 4),
