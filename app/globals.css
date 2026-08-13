@@ -16,7 +16,7 @@
   /* Health scale — colourblind-safe red → amber → blue */
   --color-health-low: #ef4444; /* unhealthy */
   --color-health-mid: #f59e0b; /* marginal  */
-  --color-health-high: #3b82f6; /* healthy   */
+  --color-health-high: #22c55e; /* healthy */
 
   /* Status */
   --color-driving: #22c55e;

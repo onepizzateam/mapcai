@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { geoContains } from 'd3-geo';
 import { feature } from 'topojson-client';
 import { useFleetStore } from '@/store/fleetStore';
-import type { BinDetail } from '@/lib/types';
+import type { BinDetail, BinSummary } from '@/lib/types';
 import { MetricRow } from '../ui/MetricRow';
 import { StatusBadge } from '../ui/StatusBadge';
 
@@ -12,6 +12,7 @@ const ZONES = ['North', 'South', 'East', 'West'] as const;
 
 export function CountrySummary() {
   const bins = useFleetStore((s) => s.bins);
+  const binIds = useMemo(() => bins.map((b) => b.id).join(','), [bins]);
   const selectedBinId = useFleetStore((s) => s.selectedBinId);
   const selectBin = useFleetStore((s) => s.selectBin);
   const [countries, setCountries] = useState<Record<string, string>>(() => Object.fromEntries(bins.map((b) => [b.id, approximateCountry(b.lat, b.lng)])));
@@ -59,7 +60,7 @@ export function CountrySummary() {
       if (!cancelled) setCountries(out);
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [bins]);
+  }, [binIds]);
 
   const selected = bins.find((b) => b.id === selectedBinId);
   const country = selected ? countries[selected.id] : null;
@@ -92,5 +93,5 @@ function SocTrend({ detail }: { detail: BinDetail | null }) {
 
 function VehicleSection({ detail }: { detail: BinDetail | null }) { return <section className="border-t border-border pt-4"><div className="flex items-baseline justify-between"><p className="text-[10px] uppercase tracking-wide text-text-muted">Vehicles</p><span className="text-[10px] text-text-muted">lowest charge first</span></div><p className="mt-1 font-mono text-xl text-text-primary">{detail?.vehicles.length ?? '…'}</p><div className="mt-2 flex flex-col">{(detail?.vehicles ?? []).map((v) => <div key={v.id} className="border-b border-border py-3"><div className="flex items-start justify-between gap-2"><div><p className="font-mono text-[11px] text-text-primary">{v.id}</p><p className="font-mono text-[10px] text-text-muted">{v.plate}</p></div><StatusBadge status={v.status} /></div><div className="mt-2 flex items-center justify-between text-[11px] text-text-muted"><span>{v.model}</span><span className="font-mono text-text-primary">{v.soc.toFixed(0)}%</span><span>{Math.round(v.range_km ?? 0)} km</span></div></div>)}</div></section>; }
 
-function zoneRollup(members: typeof useFleetStore extends never ? never : any[], total: number) { if (!members.length) return []; const lat = members.reduce((n, b) => n + b.lat, 0) / members.length; const lng = members.reduce((n, b) => n + b.lng, 0) / members.length; return ZONES.map((name) => { const group = members.filter((b) => name === 'North' ? b.lat >= lat : name === 'South' ? b.lat < lat && b.lng >= lng : name === 'East' ? b.lat < lat && b.lng < lng : b.lat >= lat && b.lng < lng); const vehicles = group.reduce((n, b) => n + b.vehicle_count, 0); return { name, vehicles, alerts: group.reduce((n, b) => n + b.open_exceptions, 0), share: total ? vehicles / total * 100 : 0 }; }); }
+function zoneRollup(members: BinSummary[], total: number) { if (!members.length) return []; const lat = members.reduce((n, b) => n + b.lat, 0) / members.length; const lng = members.reduce((n, b) => n + b.lng, 0) / members.length; return ZONES.map((name) => { const group = members.filter((b) => name === 'North' ? b.lat >= lat : name === 'South' ? b.lat < lat && b.lng >= lng : name === 'East' ? b.lat < lat && b.lng < lng : b.lat >= lat && b.lng < lng); const vehicles = group.reduce((n, b) => n + b.vehicle_count, 0); return { name, vehicles, alerts: group.reduce((n, b) => n + b.open_exceptions, 0), share: total ? vehicles / total * 100 : 0 }; }); }
 function approximateCountry(lat: number, lng: number): string { if (lat >= 8 && lat <= 37 && lng >= 68 && lng <= 98) return 'India'; if (lat >= 23 && lat <= 38 && lng >= 60 && lng < 78) return 'Pakistan'; if (lat >= 18 && lat <= 30 && lng >= 97 && lng <= 106) return 'Myanmar'; if (lat >= 20 && lat <= 31 && lng >= 88 && lng < 93) return 'Bangladesh'; return 'Unknown'; }

@@ -61,9 +61,9 @@ export function HexLegend() {
             }}
           />
           <div className="mt-1 flex justify-between text-[10px] text-text-muted">
-            <span>Green · no stranded</span>
-            <span>Amber · &gt;10% critical</span>
-            <span>Red · stranded</span>
+            <span>Green · healthy SOC</span>
+            <span>Amber · low charge</span>
+            <span>Red · stranded / critical</span>
           </div>
         </div>
       )}

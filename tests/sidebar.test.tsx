@@ -138,7 +138,9 @@ describe('Sidebar', () => {
     expect(screen.getByText('21 open')).toBeTruthy();
     expect(screen.getByText(/17\.5 per 1k vehicles/)).toBeTruthy();
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    });
     expect(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0])).toContain(
       '/api/bin/bin_001',
     );
@@ -164,7 +166,9 @@ describe('Sidebar', () => {
     await screen.findByText('bin_001');
 
     select(null);
-    await waitFor(() => expect(screen.queryByText('bin_001')).toBeNull());
+    await act(async () => {
+      await waitFor(() => expect(screen.queryByText('bin_001')).toBeNull());
+    });
     expect(screen.getByText('Delhi NCR')).toBeTruthy();
   });
 });

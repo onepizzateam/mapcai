@@ -228,11 +228,6 @@ function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
   );
 }
 
-function urgencyFor(d: HexDatum): number {
-  const count = Math.max(1, d.vehicle_count);
-  return Math.min(1, Math.max(0, ((d.stranded_count ?? 0) / count) * 0.6 + ((d.critical_soc_count ?? 0) / count) * 0.4));
-}
-
 function titleFor(d: HexDatum, labelThreshold: number): string {
   const region = d.bins[0]?.region ?? 'Unknown';
   const label =
