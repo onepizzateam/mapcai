@@ -25,7 +25,7 @@ import { MapControls } from './MapControls';
 const DEBOUNCE_MS = 120;
 
 export function FleetMap() {
-  const { geo, error } = useIndiaGeo();
+  const { geo: geoBundle, error } = useIndiaGeo();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const mapLayerRef = useRef<SVGGElement | null>(null);
@@ -66,19 +66,19 @@ export function FleetMap() {
   }, []);
 
   const projection = useMemo(() => {
-    if (!geo || size.w === 0 || size.h === 0) return null;
-    return buildProjection({ width: size.w, height: size.h });
-  }, [geo, size.w, size.h]);
+    if (!geoBundle || size.w === 0 || size.h === 0) return null;
+    return buildProjection({ width: size.w, height: size.h, land: geoBundle.land });
+  }, [geoBundle, size.w, size.h]);
 
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
   const statePaths = useMemo(() => {
-    if (!geo || !pathGen) return [] as { d: string; key: string }[];
-    return (geo.features as Feature<Geometry>[]).map((f, i) => ({
+    if (!geoBundle || !pathGen) return [] as { d: string; key: string }[];
+    return geoBundle.states.features.map((f, i) => ({
       d: pathGen(f) ?? '',
       key: String((f.properties as Record<string, unknown>)?.name ?? i),
     }));
-  }, [geo, pathGen]);
+  }, [geoBundle, pathGen]);
 
   // Set up d3-zoom once the svg + map layer exist.
   useEffect(() => {
@@ -138,7 +138,7 @@ export function FleetMap() {
         width={size.w}
         height={size.h}
         role="img"
-        aria-label="World map showing fleet health"
+        aria-label="Map showing fleet vehicle health"
         className="block h-full w-full touch-none"
       >
         <rect
@@ -148,9 +148,16 @@ export function FleetMap() {
           fill="transparent"
           pointerEvents="all"
         />
+        <defs>
+          {pathGen && geoBundle && (
+            <clipPath id="land-clip">
+              <path d={pathGen(geoBundle.land) ?? ''} />
+            </clipPath>
+          )}
+        </defs>
         <g ref={mapLayerRef} className="map-layer">
           {/* State outlines — static chrome, drawn once per projection. */}
-          <g className="states" fill="var(--color-surface)" stroke="#e2e8f0" strokeWidth={0.5}>
+          <g className="states" fill="var(--color-surface)" stroke="#b0b8cc" strokeWidth={0.8} strokeLinejoin="round">
             {statePaths.map((s) => (
               <path key={s.key} d={s.d} />
             ))}
@@ -158,13 +165,15 @@ export function FleetMap() {
 
           {/* Hexbin layer — D3 owns everything inside this <g>. */}
           {projection && (
-            <HexLayer
-              projection={projection}
-              width={size.w}
-              height={size.h}
-              radius={tier.radius}
-              labelThreshold={tier.labelThreshold}
-            />
+            <g clipPath="url(#land-clip)">
+              <HexLayer
+                projection={projection}
+                width={size.w}
+                height={size.h}
+                radius={tier.radius}
+                labelThreshold={tier.labelThreshold}
+              />
+            </g>
           )}
         </g>
       </svg>

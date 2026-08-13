@@ -1,68 +1,65 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { feature } from 'topojson-client';
+import { feature, merge } from 'topojson-client';
 import type { Topology, GeometryCollection } from 'topojson-specification';
-import type { FeatureCollection, Geometry } from 'geojson';
+import type { FeatureCollection, Geometry, Feature, MultiPolygon } from 'geojson';
 
-// Fetches a world basemap ONCE and converts it to GeoJSON. The
-// result is cached at module scope so remounts / multiple consumers never
-// re-fetch or re-parse (agents.md §4).
+export interface GeoBundle {
+  states: FeatureCollection<Geometry>;
+  land: Feature<MultiPolygon>;
+}
 
-let cachedGeo: FeatureCollection<Geometry> | null = null;
-let inflight: Promise<FeatureCollection<Geometry>> | null = null;
+let cached: GeoBundle | null = null;
+let inflight: Promise<GeoBundle> | null = null;
 
-async function loadGeo(): Promise<FeatureCollection<Geometry>> {
-  if (cachedGeo) return cachedGeo;
+async function loadGeo(): Promise<GeoBundle> {
+  if (cached) return cached;
   if (inflight) return inflight;
 
-  inflight = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-    .then((res) => {
+  inflight = fetch('/india-states.topo.json')
+    .then(async (res) => {
       if (!res.ok) throw new Error(`TopoJSON fetch failed: ${res.status}`);
       return res.json() as Promise<Topology>;
     })
     .then((topo) => {
-      // Object key is normalised to "states" by the build step; fall back to
-      // the first object if a future asset uses a different name.
-      const key = topo.objects.states ? 'states' : Object.keys(topo.objects)[0];
-      const fc = feature(
+      const statesKey = 'states' in topo.objects ? 'states' : Object.keys(topo.objects)[0];
+      if (!statesKey) throw new Error('TopoJSON contains no geometry objects');
+      const statesObject = topo.objects[statesKey] as GeometryCollection;
+      const states = feature(topo, statesObject) as unknown as FeatureCollection<Geometry>;
+      const land = merge(
         topo,
-        topo.objects[key] as GeometryCollection
-      ) as unknown as FeatureCollection<Geometry>;
-      cachedGeo = fc;
+        statesObject.geometries as unknown as Parameters<typeof merge>[1]
+      ) as unknown as Feature<MultiPolygon>;
+      cached = { states, land };
       inflight = null;
-      return fc;
+      return cached;
+    })
+    .catch((error) => {
+      inflight = null;
+      throw error;
     });
 
   return inflight;
 }
 
 export interface UseIndiaGeo {
-  geo: FeatureCollection<Geometry> | null;
+  geo: GeoBundle | null;
   error: string | null;
 }
 
 export function useIndiaGeo(): UseIndiaGeo {
-  const [geo, setGeo] = useState<FeatureCollection<Geometry> | null>(cachedGeo);
+  const [geo, setGeo] = useState<GeoBundle | null>(cached);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
-    if (cachedGeo) {
-      setGeo(cachedGeo);
-      return;
-    }
+    if (cached) { setGeo(cached); return; }
     loadGeo()
-      .then((fc) => {
-        if (mounted.current) setGeo(fc);
-      })
-      .catch((err) => {
-        if (mounted.current) setError(String(err));
-      });
-    return () => {
-      mounted.current = false;
-    };
+      .then((bundle) => { if (mounted.current) setGeo(bundle); })
+      .catch((err) => { if (mounted.current) setError(String(err)); });
+    return () => { mounted.current = false; };
   }, []);
 
   return { geo, error };

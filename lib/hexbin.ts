@@ -21,9 +21,9 @@ export interface ZoomTier {
 }
 
 export const ZOOM_BREAKPOINTS: readonly ZoomTier[] = [
-  { maxZoom: 1.5, radius: 28, labelThreshold: Infinity }, // overview
-  { maxZoom: 3.5, radius: 16, labelThreshold: 500 }, // region
-  { maxZoom: Infinity, radius: 8, labelThreshold: 100 }, // city
+  { maxZoom: 1.5, radius: 22, labelThreshold: Infinity },
+  { maxZoom: 3.5, radius: 13, labelThreshold: 500 },
+  { maxZoom: Infinity, radius: 7, labelThreshold: 100 },
 ] as const;
 
 /** Select the active tier for a given d3-zoom scale factor. */
@@ -77,7 +77,7 @@ export function binHexes(
     .x((d) => projection([d.lng, d.lat])![0])
     .y((d) => projection([d.lng, d.lat])![1])
     .radius(radius)
-    .extent([[-width * 2, -height * 2], [width * 3, height * 3]]);
+    .extent([[-width, -height], [width * 2, height * 2]]);
 
   return hb(validPoints).map((cell) => {
     const source = cell as unknown as BinSummary[]; // d3 hexbin cell is an array of data + x/y
