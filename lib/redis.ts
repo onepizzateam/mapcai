@@ -212,8 +212,10 @@ export async function getBinVehicles(id: string): Promise<Vehicle[]> {
 
 export async function getRegionSummaries(): Promise<RegionSummary[]> {
   const r = getRedis();
-  const pipeline = r.pipeline();
   const names = ((await r.smembers(KEYS.regionsIndex)) as string[]) ?? [];
+  if (names.length === 0) return [];
+
+  const pipeline = r.pipeline();
   for (const name of names) pipeline.hgetall(KEYS.regionSummary(name));
   const rows = (await pipeline.exec()) as Hash[];
 
