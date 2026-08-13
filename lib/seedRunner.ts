@@ -17,7 +17,7 @@ import { resolveBinCountries } from './geo/resolveCountry';
 // ---------------------------------------------------------------------------
 
 /** Bump when the key schema changes so an old dataset is never read as current. */
-export const SEED_VERSION = 'v2';
+export const SEED_VERSION = 'v3';
 
 /** Upstash REST caps request size, so hash/vehicle writes go out in batches. */
 const BATCH_SIZE = 250;

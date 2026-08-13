@@ -70,12 +70,43 @@ export const TOTAL_VEHICLES = 25_000;
 export const BIN_COUNT = 500;
 export const VEHICLE_LIST_CAP = 50; // per-bin list trimmed to 50 (agents.md §2)
 
-const EV_MODELS = [
-  { name: 'Tata Nexon EV', rated_range: 465 }, { name: 'Tata Tiago EV', rated_range: 315 },
-  { name: 'MG ZS EV', rated_range: 461 }, { name: 'MG Windsor EV', rated_range: 331 },
-  { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
-  { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
-];
+const MODELS_BY_REGION: Record<string, { name: string; rated_range: number }[]> = {
+  india: [
+    { name: 'Tata Nexon EV', rated_range: 465 }, { name: 'Tata Tiago EV', rated_range: 315 },
+    { name: 'MG ZS EV', rated_range: 461 }, { name: 'MG Windsor EV', rated_range: 331 },
+    { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
+    { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
+  ],
+  china: [
+    { name: 'BYD Han EV', rated_range: 605 }, { name: 'BYD Seagull', rated_range: 405 },
+    { name: 'Wuling Hongguang Mini EV', rated_range: 170 }, { name: 'NIO ET5', rated_range: 550 },
+    { name: 'XPeng P7', rated_range: 670 }, { name: 'Li Auto L9', rated_range: 1080 },
+    { name: 'AITO M7', rated_range: 1050 }, { name: 'Chery iCar 03', rated_range: 500 },
+  ],
+  usa: [
+    { name: 'Tesla Model 3', rated_range: 576 }, { name: 'Tesla Model Y', rated_range: 531 },
+    { name: 'Chevrolet Bolt EV', rated_range: 417 }, { name: 'Ford F-150 Lightning', rated_range: 515 },
+    { name: 'Rivian R1T', rated_range: 505 },
+  ],
+  europe: [
+    { name: 'Volkswagen ID.4', rated_range: 520 }, { name: 'Tesla Model 3', rated_range: 576 },
+    { name: 'Renault Zoe', rated_range: 395 }, { name: 'Peugeot e-208', rated_range: 362 },
+    { name: 'BMW iX3', rated_range: 460 }, { name: 'Hyundai Ioniq 5', rated_range: 507 },
+  ],
+  sea: [
+    { name: 'BYD Atto 3', rated_range: 521 }, { name: 'BYD Dolphin', rated_range: 427 },
+    { name: 'MG ZS EV', rated_range: 461 }, { name: 'Wuling Air EV', rated_range: 300 },
+    { name: 'Neta V', rated_range: 401 },
+  ],
+  me: [
+    { name: 'Tesla Model 3', rated_range: 576 }, { name: 'Tesla Model Y', rated_range: 531 },
+    { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Ioniq 6', rated_range: 614 },
+  ],
+  world: [
+    { name: 'Tesla Model 3', rated_range: 576 }, { name: 'BYD Atto 3', rated_range: 521 },
+    { name: 'Nissan Leaf', rated_range: 364 }, { name: 'Hyundai Kona Electric', rated_range: 484 },
+  ],
+};
 const ENERGY_COST_INR = 8.5;
 
 /** Reset faker to the fixed seed. Call once before any generation. */
@@ -152,8 +183,17 @@ function sampleStatus(): VehicleStatus {
   return 'stranded';
 }
 
-function plate(): string {
-  return `EV-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${faker.string.alpha({ length: 2, casing: 'upper' })}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
+function plateFor(regionHint: string): string {
+  const alpha = (length: number) => faker.string.alpha({ length, casing: 'upper' });
+  const digits = (length: number) => String(faker.number.int({ min: 0, max: 10 ** length - 1 })).padStart(length, '0');
+  switch (regionHint) {
+    case 'china': return `${faker.helpers.arrayElement(['京', '沪', '粤', '苏', '浙', '川'])}${alpha(1)}·${faker.string.alphanumeric({ length: 5, casing: 'upper' })}`;
+    case 'usa': return `${alpha(3)}-${faker.number.int({ min: 1000, max: 9999 })}`;
+    case 'europe': return `${alpha(2)}-${alpha(3)}-${digits(2)}`;
+    case 'sea': return `${alpha(1)} ${digits(4)} ${alpha(2)}`;
+    case 'me': return `${alpha(1)}·${faker.string.alphanumeric({ length: 5, casing: 'upper' })}`;
+    default: return `EV-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${alpha(2)}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
+  }
 }
 
 // --- generators -----------------------------------------------------------
@@ -163,17 +203,26 @@ function plate(): string {
  * with a small gaussian jitter around each metro so the hexbin looks organic.
  * Deterministic given the seed.
  */
-export function generateBins(): BinSummary[] {
-  const INDIA = { latMin: 8, latMax: 35.5, lngMin: 68, lngMax: 97.5 };
-  const bins: BinSummary[] = [];
+export function generateBins(): ({ bin: BinSummary; regionHint: string } & BinSummary)[] {
+  const regions = [
+    ['india', 0.55, { latMin: 8, latMax: 35.5, lngMin: 68, lngMax: 97.5 }],
+    ['china', 0.80, { latMin: 18, latMax: 53, lngMin: 73, lngMax: 135 }],
+    ['usa', 0.85, { latMin: 25, latMax: 49, lngMin: -125, lngMax: -67 }],
+    ['europe', 0.90, { latMin: 36, latMax: 71, lngMin: -10, lngMax: 40 }],
+    ['sea', 0.95, { latMin: -10, latMax: 20, lngMin: 95, lngMax: 140 }],
+    ['me', 0.98, { latMin: 12, latMax: 38, lngMin: 35, lngMax: 60 }],
+    ['world', 1, { latMin: -55, latMax: 70, lngMin: -180, lngMax: 180 }],
+  ] as const;
+  const bins: ({ bin: BinSummary; regionHint: string } & BinSummary)[] = [];
   for (let i = 0; i < BIN_COUNT; i++) {
-      const isIndia = faker.number.float({ min: 0, max: 1 }) < 0.70;
+      const roll = faker.number.float({ min: 0, max: 1 });
+      const [regionHint, , bbox] = regions.find(([, threshold]) => roll < threshold)!;
       let lat: number;
       let lng: number;
       let attempts = 0;
       do {
-        lat = faker.number.float({ min: isIndia ? INDIA.latMin : -55, max: isIndia ? INDIA.latMax : 70 });
-        lng = faker.number.float({ min: isIndia ? INDIA.lngMin : -180, max: isIndia ? INDIA.lngMax : 180 });
+        lat = faker.number.float({ min: bbox.latMin, max: bbox.latMax });
+        lng = faker.number.float({ min: bbox.lngMin, max: bbox.lngMax });
         attempts++;
       } while (!isOnLand(lat, lng) && attempts < 50);
 
@@ -183,7 +232,7 @@ export function generateBins(): BinSummary[] {
         lat = 28.6139;
         lng = 77.2090;
       }
-      bins.push({
+      const bin = {
         id: `bin_${String(i).padStart(3, '0')}`,
         lat: round(lat, 4),
         lng: round(lng, 4),
@@ -197,7 +246,10 @@ export function generateBins(): BinSummary[] {
         open_exceptions: 0,
         alerts_per_1k: 0,
         region: '',
-      });
+      };
+      // Keep the legacy coordinate fields available to the seed CLI while the
+      // generator itself also carries the non-persisted region hint.
+      bins.push({ ...bin, bin, regionHint });
   }
   return bins;
 }
@@ -216,7 +268,8 @@ export interface GeneratedFleet {
  */
 export function generateFleet(): GeneratedFleet {
   reseed();
-  const bins = generateBins();
+  const generatedBins = generateBins();
+  const bins = generatedBins.map(({ bin }) => bin);
   const minimumFleet = 50;
   const targetMean = TOTAL_VEHICLES / BIN_COUNT;
   const counts = bins.map(() => {
@@ -239,6 +292,7 @@ export function generateFleet(): GeneratedFleet {
   let vid = 0;
 
   bins.forEach((bin, bi) => {
+    const regionHint = generatedBins[bi].regionHint;
     const n = counts[bi];
     const list: Vehicle[] = [];
     let sohSum = 0, socSum = 0, rangeSum = 0, degradationSum = 0, energyCost = 0;
@@ -246,7 +300,7 @@ export function generateFleet(): GeneratedFleet {
 
     for (let i = 0; i < n; i++) {
       const soh = sampleSOH();
-      const model = faker.helpers.arrayElement(EV_MODELS);
+      const model = faker.helpers.arrayElement(MODELS_BY_REGION[regionHint]);
       // Every tenth bin is an intentionally severe triage cluster so the
       // urgency scale visibly exercises its red end in the seeded demo.
       const effectiveStatus = bi % 10 === 0 ? 'stranded' : sampleStatus();
@@ -257,7 +311,7 @@ export function generateFleet(): GeneratedFleet {
       sohSum += soh;
       const v: Vehicle = {
         id: `veh_${String(vid).padStart(6, '0')}`,
-        plate: plate(), model: model.name, soc, status: effectiveStatus,
+        plate: plateFor(regionHint), model: model.name, soc, status: effectiveStatus,
         soh,
         degradation_rate: degradation, range_km: range, rated_range_km: model.rated_range,
         energy_consumed_kwh: energy, energy_cost_inr: round(energy * ENERGY_COST_INR, 0),
