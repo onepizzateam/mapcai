@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { HOTSPOTS, INDIA_BOUNDS } from '@/lib/regions';
+import { HOTSPOTS, REGION_BOUNDS } from '@/lib/regions';
 import type {
   BinSummary,
   Vehicle,
@@ -139,17 +139,9 @@ export function generateBins(): BinSummary[] {
   for (const hs of HOTSPOTS) {
     const nBins = binsPerRegion[hs.region];
     for (let i = 0; i < nBins; i++) {
-      const spread = hs.region === 'Delhi NCR' ? 4.0 : 3.4;
-      const lat = clamp(
-        hs.lat + gaussian() * spread,
-        INDIA_BOUNDS.minLat,
-        INDIA_BOUNDS.maxLat
-      );
-      const lng = clamp(
-        hs.lng + gaussian() * spread,
-        INDIA_BOUNDS.minLng,
-        INDIA_BOUNDS.maxLng
-      );
+      const bounds = REGION_BOUNDS[hs.region];
+      const lat = bounds.latMin + faker.number.float({ min: 0, max: 1 }) * (bounds.latMax - bounds.latMin);
+      const lng = bounds.lngMin + faker.number.float({ min: 0, max: 1 }) * (bounds.lngMax - bounds.lngMin);
       bins.push({
         id: `bin_${String(idx).padStart(3, '0')}`,
         lat: round(lat, 4),

@@ -7,7 +7,7 @@ import type { FeatureCollection, Geometry } from 'geojson';
 export interface ProjectionInput {
   width: number;
   height: number;
-  geo: FeatureCollection<Geometry>;
+  geo?: FeatureCollection<Geometry>;
 }
 
 /**
@@ -16,9 +16,7 @@ export interface ProjectionInput {
  */
 export function buildProjection({ width, height, geo }: ProjectionInput): GeoProjection {
   const padding = 40;
-  return geoMercator()
-    .fitExtent([[padding, padding], [Math.max(padding, width - padding), Math.max(padding, height - padding)]], geo)
-    .precision(0.1);
+  return geoMercator().center([78.9629, 22.5937]).scale(Math.min(width, height) * 1.25).translate([width / 2, height / 2]).precision(0.1);
 }
 
 /** Project a [lng, lat] pair to [x, y] pixels, or null if unprojectable. */

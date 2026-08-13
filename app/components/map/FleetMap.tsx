@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { select } from 'd3-selection';
-import { geoPath } from 'd3-geo';
+import { geoMercator, geoPath } from 'd3-geo';
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type D3ZoomEvent } from 'd3-zoom';
 import type { Feature, Geometry } from 'geojson';
 import { useIndiaGeo } from './useIndiaGeo';
@@ -33,6 +33,7 @@ export function FleetMap() {
   const tierDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [zoomTransform, setZoomTransform] = useState(zoomIdentity);
 
   const zoomTier = useFleetStore((s) => s.zoomTier);
   const setZoomTier = useFleetStore((s) => s.setZoomTier);
@@ -52,10 +53,18 @@ export function FleetMap() {
 
   const projection = useMemo(() => {
     if (!geo || size.w === 0 || size.h === 0) return null;
-    return buildProjection({ width: size.w, height: size.h, geo });
+    return buildProjection({ width: size.w, height: size.h });
   }, [geo, size.w, size.h]);
 
-  const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
+  const zoomedProjection = useMemo(() => {
+    if (!projection) return null;
+    return geoMercator().center([78.9629, 22.5937]).scale(projection.scale() * zoomTransform.k).translate([
+      projection.translate()[0] * zoomTransform.k + zoomTransform.x,
+      projection.translate()[1] * zoomTransform.k + zoomTransform.y,
+    ]).precision(0.1);
+  }, [projection, zoomTransform]);
+
+  const pathGen = useMemo(() => (zoomedProjection ? geoPath(zoomedProjection) : null), [zoomedProjection]);
 
   const statePaths = useMemo(() => {
     if (!geo || !pathGen) return [] as { d: string; key: string }[];
@@ -75,7 +84,7 @@ export function FleetMap() {
       .scaleExtent([1, 8])
       .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
         // Pure SVG transform — no React state, no recompute.
-        select(layer).attr('transform', event.transform.toString());
+        setZoomTransform(event.transform);
 
         // Only cross-tier changes re-bin. Debounced so a pinch doesn't thrash.
         const nextTierIndex = ZOOM_BREAKPOINTS.indexOf(tierForZoom(event.transform.k));
@@ -126,16 +135,16 @@ export function FleetMap() {
       >
         <g ref={mapLayerRef} className="map-layer">
           {/* State outlines — static chrome, drawn once per projection. */}
-          <g className="states" fill="var(--color-surface)" stroke="var(--color-border-strong)" strokeWidth={0.5}>
+          <g className="states" fill="var(--color-surface)" stroke="#e2e8f0" strokeWidth={0.5}>
             {statePaths.map((s) => (
               <path key={s.key} d={s.d} />
             ))}
           </g>
 
           {/* Hexbin layer — D3 owns everything inside this <g>. */}
-          {projection && (
+          {zoomedProjection && (
             <HexLayer
-              projection={projection}
+              projection={zoomedProjection}
               radius={tier.radius}
               labelThreshold={tier.labelThreshold}
             />
@@ -146,7 +155,7 @@ export function FleetMap() {
       {/* Overlays (HTML, positioned above the SVG). */}
       <MapControls onZoomIn={() => zoomBy(1.5)} onZoomOut={() => zoomBy(1 / 1.5)} onReset={resetZoom} />
       <HexLegend />
-      <HexTooltip containerRef={containerRef} projection={projection} />
+      <HexTooltip containerRef={containerRef} projection={zoomedProjection} />
     </div>
   );
 }

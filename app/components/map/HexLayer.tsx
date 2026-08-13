@@ -63,7 +63,8 @@ export function HexLayer({ projection, radius, labelThreshold }: HexLayerProps) 
     console.log(`[FleetMap] bins received: ${visible.length}`);
     console.log('[FleetMap] sample encodings:', hexes.slice(0, 5).map((hex) => ({
       bins: hex.bins.map((bin) => bin.id),
-      avgSoc: Number(hex.avg_soc.toFixed(1)),
+      urgency: Number(urgencyFor(hex).toFixed(3)),
+      fill: fillFor(hex, dMax, mode).fill,
       opacity: Number(fillFor(hex, dMax, mode).fillOpacity.toFixed(3)),
     })));
     const path = hexPath(radius);
@@ -216,9 +217,14 @@ function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
       critical_soc_count: d.critical_soc_count,
       vehicle_count: d.vehicle_count,
     },
-    d.vehicle_count / dMax,
+    d.vehicle_count / 800,
     mode
   );
+}
+
+function urgencyFor(d: HexDatum): number {
+  const count = Math.max(1, d.vehicle_count);
+  return Math.min(1, Math.max(0, ((d.stranded_count ?? 0) / count) * 0.6 + ((d.critical_soc_count ?? 0) / count) * 0.4));
 }
 
 function titleFor(d: HexDatum, labelThreshold: number): string {

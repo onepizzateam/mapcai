@@ -1,4 +1,5 @@
-import { scaleLinear } from 'd3-scale';
+import { scaleLinear, scaleSequential } from 'd3-scale';
+import { interpolateRgbBasis } from 'd3-interpolate';
 import type { BinSummary, ViewMode } from './types';
 
 // ---------------------------------------------------------------------------
@@ -14,7 +15,7 @@ import type { BinSummary, ViewMode } from './types';
 
 export const HEALTH_LOW = '#EF4444'; // urgent / stranded
 export const HEALTH_MID = '#F59E0B'; // marginal
-export const HEALTH_HIGH = '#3B82F6'; // healthy
+export const HEALTH_HIGH = '#22C55E'; // healthy
 
 /** Neutral fill used by "Density only" mode where hue carries no meaning. */
 export const DENSITY_NEUTRAL = '#5B5BD6'; // --color-accent
@@ -22,7 +23,7 @@ export const DENSITY_NEUTRAL = '#5B5BD6'; // --color-accent
 // Density opacity bounds. A faint floor keeps sparse bins visible; the ceiling
 // stays below 1 so overlapping hexes at borders remain legible.
 export const OPACITY_MIN = 0.15;
-export const OPACITY_MAX = 0.95;
+export const OPACITY_MAX = 0.92;
 
 /**
  * Fleet health index in [0,1]. Higher = healthier.
@@ -38,10 +39,7 @@ export function healthIndex(bin: Pick<BinSummary, 'avg_soh' | 'open_exceptions' 
 
 // Diverging hue ramp. d3 interpolates through the amber midpoint, giving the
 // three-stop red → amber → blue scale the spec calls for.
-const hueScale = scaleLinear<string>()
-  .domain([0, 0.5, 1])
-  .range([HEALTH_LOW, HEALTH_MID, HEALTH_HIGH])
-  .clamp(true);
+const hueScale = scaleSequential(interpolateRgbBasis([HEALTH_HIGH, HEALTH_MID, HEALTH_LOW])).domain([0, 1]);
 
 /** Map a health index in [0,1] to a colourblind-safe hue. */
 export function healthColour(index: number): string {
@@ -79,23 +77,16 @@ export function binFill(
   densityNorm: number,
   mode: ViewMode
 ): FillResult {
-  const soc = bin.avg_soc ?? bin.avg_soh ?? 0;
-  if (bin.avg_soc === undefined && mode !== 'density') {
-    const legacy = clamp01((bin.avg_soh ?? 0) / 100 * (1 - (bin.vehicle_count > 0 ? bin.open_exceptions / bin.vehicle_count : 0)));
-    const fill = healthColour(legacy);
-    return { fill, fillOpacity: mode === 'health' ? OPACITY_MAX : densityOpacity(densityNorm) };
-  }
-  const stranded = bin.stranded_count ?? 0;
-  const critical = bin.critical_soc_count ?? 0;
-  const urgency = stranded > 0 || soc < 15 ? HEALTH_LOW : soc < 35 || critical > bin.vehicle_count * 0.1 ? HEALTH_MID : HEALTH_HIGH;
+  const count = Math.max(1, bin.vehicle_count);
+  const urgency = clamp01(((bin.stranded_count ?? 0) / count) * 0.6 + ((bin.critical_soc_count ?? 0) / count) * 0.4);
   switch (mode) {
     case 'health':
-      return { fill: urgency, fillOpacity: OPACITY_MAX };
+      return { fill: healthColour(urgency), fillOpacity: OPACITY_MAX };
     case 'density':
       return { fill: DENSITY_NEUTRAL, fillOpacity: densityOpacity(densityNorm) };
     case 'combined':
     default:
-      return { fill: urgency, fillOpacity: densityOpacity(densityNorm) };
+      return { fill: healthColour(urgency), fillOpacity: densityOpacity(densityNorm) };
   }
 }
 

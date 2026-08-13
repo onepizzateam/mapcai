@@ -5,7 +5,7 @@ import { feature } from 'topojson-client';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { FeatureCollection, Geometry } from 'geojson';
 
-// Fetches /public/india-states.topo.json ONCE and converts to GeoJSON. The
+// Fetches a world basemap ONCE and converts it to GeoJSON. The
 // result is cached at module scope so remounts / multiple consumers never
 // re-fetch or re-parse (agents.md §4).
 
@@ -16,7 +16,7 @@ async function loadGeo(): Promise<FeatureCollection<Geometry>> {
   if (cachedGeo) return cachedGeo;
   if (inflight) return inflight;
 
-  inflight = fetch('/india-states.topo.json')
+  inflight = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
     .then((res) => {
       if (!res.ok) throw new Error(`TopoJSON fetch failed: ${res.status}`);
       return res.json() as Promise<Topology>;

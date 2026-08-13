@@ -53,17 +53,17 @@ export function HexLegend() {
       {/* Health hue ramp */}
       {showHealth && (
         <div className="mb-2">
-          <div className="mb-1 font-medium text-text-primary">Fleet health</div>
+          <div className="mb-1 font-medium text-text-primary">Fleet urgency</div>
           <div
             className="h-2 w-full rounded"
             style={{
-              background: `linear-gradient(to right, ${HEALTH_LOW}, ${HEALTH_MID}, ${HEALTH_HIGH})`,
+              background: `linear-gradient(to right, ${HEALTH_HIGH}, ${HEALTH_MID}, ${HEALTH_LOW})`,
             }}
           />
           <div className="mt-1 flex justify-between text-[10px] text-text-muted">
-            <span>Unhealthy</span>
-            <span>Marginal</span>
-            <span>Healthy</span>
+            <span>Green · no stranded</span>
+            <span>Amber · &gt;10% critical</span>
+            <span>Red · stranded</span>
           </div>
         </div>
       )}
@@ -79,8 +79,8 @@ export function HexLegend() {
             }}
           />
           <div className="mt-1 flex justify-between text-[10px] text-text-muted">
-            <span>Sparse</span>
-            <span>Dense</span>
+            <span>Sparse · &lt;50</span>
+            <span>Dense · 800+</span>
           </div>
         </div>
       )}

@@ -26,6 +26,17 @@ export const HOTSPOTS: readonly Hotspot[] = [
 
 export const REGION_NAMES: readonly RegionName[] = HOTSPOTS.map((h) => h.region);
 
+export const REGION_BOUNDS: Record<RegionName, { latMin: number; latMax: number; lngMin: number; lngMax: number }> = {
+  'Delhi NCR': { latMin: 28.40, latMax: 28.88, lngMin: 76.84, lngMax: 77.55 },
+  Mumbai: { latMin: 18.89, latMax: 19.27, lngMin: 72.77, lngMax: 73.10 },
+  Bangalore: { latMin: 12.83, latMax: 13.18, lngMin: 77.46, lngMax: 77.78 },
+  Hyderabad: { latMin: 17.27, latMax: 17.56, lngMin: 78.27, lngMax: 78.63 },
+  Chennai: { latMin: 12.90, latMax: 13.23, lngMin: 80.10, lngMax: 80.33 },
+  Pune: { latMin: 18.42, latMax: 18.62, lngMin: 73.76, lngMax: 73.97 },
+  Surat: { latMin: 21.10, latMax: 21.28, lngMin: 72.77, lngMax: 72.93 },
+  Ahmedabad: { latMin: 22.95, latMax: 23.13, lngMin: 72.49, lngMax: 72.68 },
+};
+
 /** India geographic bounds — a guard so scattered bins stay on-shore-ish. */
 export const INDIA_BOUNDS = {
   minLat: 8.0,
