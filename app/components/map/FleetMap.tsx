@@ -151,7 +151,7 @@ export function FleetMap() {
         <defs>
           {pathGen && geoBundle && (
             <clipPath id="land-clip">
-              <path d={pathGen(geoBundle.land) ?? ''} />
+              <path d={pathGen(geoBundle.clipLand) ?? ''} />
             </clipPath>
           )}
         </defs>

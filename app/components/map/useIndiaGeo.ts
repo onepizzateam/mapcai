@@ -7,7 +7,10 @@ import type { FeatureCollection, Geometry, Feature, MultiPolygon } from 'geojson
 
 export interface GeoBundle {
   states: FeatureCollection<Geometry>;
+  /** India geometry remains the fit target for the original initial scale. */
   land: Feature<MultiPolygon>;
+  /** World geometry extends the hex clipping mask beyond the initial viewport. */
+  clipLand: Feature<MultiPolygon>;
 }
 
 let cached: GeoBundle | null = null;
@@ -41,10 +44,14 @@ async function loadGeo(): Promise<GeoBundle> {
         features: [...worldCountries.features, ...indiaStates.features],
       };
       const land = merge(
+        indiaTopo,
+        indiaObject.geometries as unknown as Parameters<typeof merge>[1]
+      ) as unknown as Feature<MultiPolygon>;
+      const clipLand = merge(
         worldTopo,
         worldObject.geometries as unknown as Parameters<typeof merge>[1]
       ) as unknown as Feature<MultiPolygon>;
-      cached = { states, land };
+      cached = { states, land, clipLand };
       inflight = null;
       return cached;
     })
