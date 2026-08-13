@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens — single source of truth (agents.md §7).
+   Swap the theme by editing this block only. */
+:root {
+  --color-bg: #f8f8fc;
+  --color-surface: #ffffff;
+  --color-border: #e4e4ef;
+  --color-border-strong: #c4c4df;
+  --color-text-primary: #111128;
+  --color-text-muted: #6b6b8a;
+  --color-accent: #5b5bd6;
+
+  /* Health scale — colourblind-safe red → amber → blue */
+  --color-health-low: #ef4444; /* unhealthy */
+  --color-health-mid: #f59e0b; /* marginal  */
+  --color-health-high: #3b82f6; /* healthy   */
+
+  /* Status */
+  --color-driving: #22c55e;
+  --color-charging: #3b82f6;
+  --color-parked: #9ca3af;
+
+  /* SOC severity */
+  --color-soc-critical: #ef4444; /* < 20% */
+  --color-soc-low: #f59e0b; /* 20–50% */
+  --color-soc-ok: #22c55e; /* > 50% */
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    /* Inter ss01 disambiguates 0/O per agents.md §7 typography. */
+    font-feature-settings: 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* DM Mono for IDs / coordinates / raw telemetry — tabular, no ligatures. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'liga' 0;
+  }
+}
+
+@layer utilities {
+  /* Live pulse dot used by LivePulse; respects reduced-motion below. */
+  @keyframes live-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(0.75);
+    }
+  }
+
+  .animate-live-pulse {
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+}
+
+/* Global reduced-motion guard — belt-and-braces alongside the JS branch that
+   interrupts D3 transitions (agents.md §4). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile bottom sheet (agents.md §6).
+
+   Below md the sheet is fixed to the bottom of the viewport at its tallest snap
+   height, and `--sheet-y` slides it down to reveal less. The map sits full-bleed
+   underneath because the sheet is out of flow entirely at this breakpoint.
+
+   `--sheet-y` is the only value JS touches: React writes a `dvh` string on snap,
+   the drag handler writes `px` during the gesture. Keeping the transform here
+   rather than in the style prop means the desktop opt-out is a media query, not
+   a matchMedia hook — no hydration mismatch, no JS on the desktop path. */
+.fleet-sheet {
+  --sheet-y: 70dvh; /* 90dvh sheet − 20dvh peek = initial resting offset */
+
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  height: 90dvh;
+  border-top: 1px solid var(--color-border);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  box-shadow: 0 -2px 16px rgb(17 17 40 / 0.08);
+  transform: translate3d(0, var(--sheet-y), 0);
+  transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* Sheet position is driven by pointer events, so the browser must not also
+     scroll the page or trigger pull-to-refresh mid-drag. */
+  touch-action: none;
+  will-change: transform;
+}
+
+/* No transition while the finger is down — the sheet must track 1:1, and a
+   280ms ease on every pointermove reads as lag. */
+.fleet-sheet[data-dragging='true'] {
+  transition: none;
+}
+
+/* At the peek snap the content is mostly off-screen; letting it scroll there
+   fights the drag. Scrolling unlocks once the sheet is raised. */
+.fleet-sheet[data-snap='peek'] > :last-child {
+  overflow: hidden;
+}
+
+.fleet-sheet:not([data-snap='peek']) > :last-child {
+  /* Momentum scrolling inside the sheet, while the sheet itself stays put. */
+  touch-action: pan-y;
+}
+
+/* Desktop: a plain right-hand rail. Every sheet affordance is reverted here —
+   the handle itself is hidden with `md:hidden` in the component. */
+@media (min-width: 768px) {
+  .fleet-sheet {
+    position: static;
+    height: auto;
+    border-top: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+    touch-action: auto;
+    will-change: auto;
+  }
+}
+
+/* Hexagon interaction affordances (D3 owns fill/opacity, not these). */
+
+.hexbin path {
+  cursor: pointer;
+  transition: stroke 120ms ease, stroke-width 120ms ease;
+}
+
+.hexbin path:focus-visible {
+  outline: none;
+  stroke: var(--color-text-primary);
+  stroke-width: 2px;
+}
