@@ -1,4 +1,3 @@
-import type { RegionName } from './types';
 
 // Real EV hotspots the fleet clusters around (agents.md §2 seeder spec).
 // Shared by the seeder and the Phase-1 static hexbin layer so the hardcoded
@@ -6,7 +5,7 @@ import type { RegionName } from './types';
 // source for these constants prevents the map and seed drifting apart.
 
 export interface Hotspot {
-  region: RegionName;
+  region: string;
   lat: number;
   lng: number;
   /** Relative weight — bigger metros carry more of the 25k fleet. */
@@ -28,9 +27,9 @@ export const HOTSPOTS: readonly Hotspot[] = [
   { region: 'São Paulo', lat: -23.5505, lng: -46.6333, weight: 0.75 },
 ] as const;
 
-export const REGION_NAMES: readonly RegionName[] = HOTSPOTS.map((h) => h.region);
+// Region names are data-driven; callers enumerate the region index or hotspots.
 
-export const REGION_BOUNDS: Record<RegionName, { latMin: number; latMax: number; lngMin: number; lngMax: number }> = {
+export const REGION_BOUNDS: Record<string, { latMin: number; latMax: number; lngMin: number; lngMax: number }> = {
   'Delhi NCR': { latMin: 28.40, latMax: 28.88, lngMin: 76.84, lngMax: 77.55 },
   Mumbai: { latMin: 18.89, latMax: 19.27, lngMin: 72.77, lngMax: 73.10 },
   Bangalore: { latMin: 12.83, latMax: 13.18, lngMin: 77.46, lngMax: 77.78 },
@@ -44,6 +43,19 @@ export const REGION_BOUNDS: Record<RegionName, { latMin: number; latMax: number;
   London: { latMin: 51.38, latMax: 51.62, lngMin: -0.35, lngMax: 0.15 },
   'São Paulo': { latMin: -23.72, latMax: -23.43, lngMin: -46.82, lngMax: -46.37 },
 };
+
+export function deriveRegion(lat: number, lng: number): string {
+  for (const [name, bounds] of Object.entries(REGION_BOUNDS)) {
+    if (lat >= bounds.latMin && lat <= bounds.latMax && lng >= bounds.lngMin && lng <= bounds.lngMax) return name;
+  }
+  let nearest = HOTSPOTS[0];
+  let minDist = Infinity;
+  for (const hs of HOTSPOTS) {
+    const d = Math.hypot(lat - hs.lat, lng - hs.lng);
+    if (d < minDist) { minDist = d; nearest = hs; }
+  }
+  return nearest.region;
+}
 
 /** India geographic bounds — a guard so scattered bins stay on-shore-ish. */
 export const INDIA_BOUNDS = {

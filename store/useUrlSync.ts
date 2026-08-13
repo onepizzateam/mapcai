@@ -3,8 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useFleetStore } from './fleetStore';
-import { REGION_NAMES } from '@/lib/regions';
-import type { RegionName, VehicleStatus } from '@/lib/types';
+import type { VehicleStatus } from '@/lib/types';
 
 // URL-sync for filters (agents.md §3 "Zustand + URL-sync middleware", §6).
 //
@@ -18,13 +17,13 @@ import type { RegionName, VehicleStatus } from '@/lib/types';
 
 const STATUSES: VehicleStatus[] = ['driving', 'charging', 'parked'];
 
-export function toRegionSlug(name: RegionName): string {
+export function toRegionSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
 }
 
-export function fromRegionSlug(slug: string | null): RegionName | null {
+export function fromRegionSlug(slug: string | null): string | null {
   if (!slug) return null;
-  return REGION_NAMES.find((n) => toRegionSlug(n) === slug.toLowerCase()) ?? null;
+  return slug.toLowerCase().replace(/-/g, ' ');
 }
 
 export function parseStatus(value: string | null): VehicleStatus | null {
@@ -54,7 +53,7 @@ export function useUrlSync(): void {
   //    re-renders its host component when filters change.
   useEffect(() => {
     let lastQuery = '';
-    const write = (region: RegionName | null, status: VehicleStatus | null) => {
+    const write = (region: string | null, status: VehicleStatus | null) => {
       const params = new URLSearchParams();
       if (region) params.set('region', toRegionSlug(region));
       if (status) params.set('status', status);

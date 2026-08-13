@@ -110,7 +110,12 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
         lng: v.lng,
       });
     }
-    await pipeline.exec();
+    try {
+      await pipeline.exec();
+    } catch (err) {
+      console.error(`[seed] Phase 1 (vehicles) failed at batch ${i / BATCH_SIZE}:`, err);
+      throw err;
+    }
   }
 
   // 2. Bin hashes + per-bin vehicle lists (SOC-ascending, capped at 50).
@@ -136,13 +141,19 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
         pipeline.rpush(KEYS.binVehicles(b.id), ...list.map((v) => v.id));
       }
     }
-    await pipeline.exec();
+    try {
+      await pipeline.exec();
+    } catch (err) {
+      console.error(`[seed] Phase 2 (bins) failed at batch ${i / 25}:`, err);
+      throw err;
+    }
   }
 
   // 3. Region summaries + 24h trend ring.
   const trendPipeline = r.pipeline();
   const oldestHour = Math.floor(Date.now() / 3_600_000) - TREND_WINDOW_HOURS;
   for (const region of regions) {
+    trendPipeline.sadd(KEYS.regionsIndex, region.name);
     trendPipeline.hset(KEYS.regionSummary(region.name), {
       vehicle_count: region.vehicle_count,
       alerts_per_1k: region.alerts_per_1k,
@@ -164,7 +175,12 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
     }
 
   }
-  await trendPipeline.exec();
+  try {
+    await trendPipeline.exec();
+  } catch (err) {
+    console.error('[seed] Phase 3 (regions and trends) failed:', err);
+    throw err;
+  }
 
   // 4. Bins index + meta + version tag — written last, in that order.
   const finalPipeline = r.pipeline();
@@ -177,7 +193,12 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
     last_updated: Date.now(),
   });
   finalPipeline.set(KEYS.seedVersion, SEED_VERSION);
-  await finalPipeline.exec();
+  try {
+    await finalPipeline.exec();
+  } catch (err) {
+    console.error('[seed] Phase 4 (indexes and metadata) failed:', err);
+    throw err;
+  }
 
   return {
     status: 'seeded',

@@ -1,10 +1,9 @@
 import { faker } from '@faker-js/faker';
-import { HOTSPOTS, REGION_BOUNDS } from '@/lib/regions';
+import { deriveRegion, HOTSPOTS, REGION_BOUNDS } from '@/lib/regions';
 import type {
   BinSummary,
   Vehicle,
   RegionSummary,
-  RegionName,
   TrendPoint,
   VehicleStatus,
 } from '@/lib/types';
@@ -22,8 +21,8 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const SEED = 42;
-export const TOTAL_VEHICLES = 40_000;
-export const BIN_COUNT = 156;
+export const TOTAL_VEHICLES = 25_000;
+export const BIN_COUNT = 500;
 export const VEHICLE_LIST_CAP = 50; // per-bin list trimmed to 50 (agents.md §2)
 
 const EV_MODELS = [
@@ -32,7 +31,7 @@ const EV_MODELS = [
   { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
   { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
 ];
-const ENERGY_COST: Record<RegionName, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7, Dubai: 8.8, Singapore: 10.2, London: 12.4, 'São Paulo': 7.1 };
+const ENERGY_COST: Record<string, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7, Dubai: 8.8, Singapore: 10.2, London: 12.4, 'São Paulo': 7.1 };
 
 /** Reset faker to the fixed seed. Call once before any generation. */
 export function reseed(): void {
@@ -108,7 +107,7 @@ function sampleStatus(): VehicleStatus {
   return 'stranded';
 }
 
-function plate(region: RegionName): string {
+function plate(region: string): string {
   const state = region === 'Delhi NCR' ? 'DL' : region === 'Mumbai' || region === 'Pune' ? 'MH' : region === 'Bangalore' ? 'KA' : region === 'Chennai' ? 'TN' : region === 'Hyderabad' ? 'TS' : region === 'Surat' || region === 'Ahmedabad' ? 'GJ' : 'MH';
   return `${state}-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${faker.string.alpha({ length: 2, casing: 'upper' })}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
 }
@@ -123,7 +122,8 @@ function plate(region: RegionName): string {
 export function generateBins(): BinSummary[] {
   // Keep the seeded footprint intentionally broad: many bins per metro make
   // density visible while preserving the eight named fleet regions.
-  const binsPerRegion: Record<RegionName, number> = {
+  /* proportional allocation below */
+  /*
     'Delhi NCR': 18,
     Mumbai: 14,
     Bangalore: 14,
@@ -136,12 +136,13 @@ export function generateBins(): BinSummary[] {
     Singapore: 14,
     London: 16,
     'São Paulo': 14,
-  };
+  }; */
   const bins: BinSummary[] = [];
+  const totalWeight = HOTSPOTS.reduce((s, h) => s + h.weight, 0);
   let idx = 0;
 
   for (const hs of HOTSPOTS) {
-    const nBins = binsPerRegion[hs.region];
+    const nBins = Math.max(8, Math.round((hs.weight / totalWeight) * BIN_COUNT));
     for (let i = 0; i < nBins; i++) {
       const bounds = REGION_BOUNDS[hs.region];
       const lat = bounds.latMin + faker.number.float({ min: 0, max: 1 }) * (bounds.latMax - bounds.latMin);
@@ -159,7 +160,7 @@ export function generateBins(): BinSummary[] {
         charger_utilization_pct: 0,
         open_exceptions: 0,
         alerts_per_1k: 0,
-        region: hs.region,
+        region: deriveRegion(lat, lng),
       });
       idx++;
     }
@@ -172,7 +173,7 @@ export interface GeneratedFleet {
   vehicles: Vehicle[];
   vehiclesByBin: Map<string, Vehicle[]>; // SOC-ascending, capped
   regions: RegionSummary[];
-  trends: Map<RegionName, TrendPoint[]>;
+  trends: Map<string, TrendPoint[]>;
 }
 
 /**
@@ -182,19 +183,13 @@ export interface GeneratedFleet {
 export function generateFleet(): GeneratedFleet {
   reseed();
   const bins = generateBins();
-  const binWeights = bins.map((_bin, index) => {
-    const base = faker.number.float({ min: 0.4, max: 1 });
-    return index % 17 === 0 ? base * 5 : base;
-  });
-  const minimumFleet = 80;
-  const variableFleet = TOTAL_VEHICLES - bins.length * minimumFleet;
-  const weightTotal = binWeights.reduce((s, w) => s + w, 0);
-  const counts = binWeights.map((w) => minimumFleet + Math.round((w / weightTotal) * variableFleet));
+  const minimumFleet = 50;
+  const counts = bins.map(() => Math.min(1500, Math.max(50, Math.round(200 * sampleBeta(1.5, 4) * 7.5 + 50))));
   let correction = TOTAL_VEHICLES - counts.reduce((s, n) => s + n, 0);
-  for (let i = 0; correction !== 0 && i < counts.length * 2; i++) {
+  for (let i = 0; correction !== 0 && i < counts.length * 2000; i++) {
     const index = i % counts.length;
     const delta = correction > 0 ? 1 : -1;
-    if (counts[index] + delta >= minimumFleet && counts[index] + delta <= 1200) {
+    if (counts[index] + delta >= minimumFleet && counts[index] + delta <= 1500) {
       counts[index] += delta;
       correction -= delta;
     }
@@ -268,7 +263,7 @@ export function generateFleet(): GeneratedFleet {
 
 /** Region rollups: totals, alerts-per-1k, and share of fleet. */
 export function rollupRegions(bins: BinSummary[]): RegionSummary[] {
-  const byRegion = new Map<RegionName, { count: number; exc: number; stranded: number; charging: number; energy: number }>();
+  const byRegion = new Map<string, { count: number; exc: number; stranded: number; charging: number; energy: number }>();
   for (const b of bins) {
     const cur = byRegion.get(b.region) ?? { count: 0, exc: 0, stranded: 0, charging: 0, energy: 0 };
     cur.count += b.vehicle_count;
@@ -290,9 +285,9 @@ export function rollupRegions(bins: BinSummary[]): RegionSummary[] {
  * 24 synthetic hourly SOH points per region so the sparkline is populated on
  * first load. A gentle random walk around the region's current avg SOH.
  */
-export function backfillTrends(regions: RegionSummary[]): Map<RegionName, TrendPoint[]> {
+export function backfillTrends(regions: RegionSummary[]): Map<string, TrendPoint[]> {
   const nowHour = Math.floor(Date.now() / 3_600_000);
-  const map = new Map<RegionName, TrendPoint[]>();
+  const map = new Map<string, TrendPoint[]>();
   for (const r of regions) {
     // Anchor near a plausible fleet SOH; walk backwards 24h.
     let soc = 45 + gaussian() * 8;

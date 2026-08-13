@@ -5,7 +5,6 @@ import type {
   FleetDiff,
   ViewMode,
   VehicleStatus,
-  RegionName,
 } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -21,7 +20,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export interface Filters {
-  region: RegionName | null;
+  region: string | null;
   status: VehicleStatus | null;
 }
 

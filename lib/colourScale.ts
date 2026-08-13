@@ -81,16 +81,18 @@ export function binFill(
   densityNorm: number,
   mode: ViewMode
 ): FillResult {
-  const count = Math.max(1, bin.vehicle_count);
-  const urgency = clamp01(bin.urgencyOverride ?? (((bin.stranded_count ?? 0) / count) * 0.6 + ((bin.critical_soc_count ?? 0) / count) * 0.4));
+  const soc = bin.avg_soc ?? bin.avg_soh ?? 50;
+  const healthNorm = clamp01(soc / 100);
+  const strandedBoost = Math.min(1, ((bin.stranded_count ?? 0) / Math.max(1, bin.vehicle_count)) * 20);
+  const finalHealth = clamp01(healthNorm - strandedBoost);
   switch (mode) {
     case 'health':
-      return { fill: healthColour(urgency), fillOpacity: OPACITY_MAX };
+      return { fill: healthColour(finalHealth), fillOpacity: OPACITY_MAX };
     case 'density':
       return { fill: DENSITY_NEUTRAL, fillOpacity: densityOpacity(densityNorm) };
     case 'combined':
     default:
-      return { fill: healthColour(urgency), fillOpacity: densityOpacity(densityNorm) };
+      return { fill: healthColour(finalHealth), fillOpacity: densityOpacity(densityNorm) };
   }
 }
 

@@ -7,7 +7,7 @@ export type VehicleStatus = 'driving' | 'charging' | 'parked' | 'stranded';
 export type ChargeType = 'AC_slow' | 'DC_fast' | 'none';
 export type ThermalStatus = 'normal' | 'elevated' | 'critical';
 
-export type RegionName =
+/*
   | 'Delhi NCR'
   | 'Mumbai'
   | 'Bangalore'
@@ -40,7 +40,7 @@ export interface BinSummary {
   charger_utilization_pct?: number;
   open_exceptions: number;
   alerts_per_1k?: number;
-  region: RegionName;
+  region: string;
 }
 
 /** One vehicle — mirrors Redis hash fleet:vehicle:{id}. */
@@ -77,7 +77,7 @@ export interface TrendPoint {
 
 /** Region rollup — mirrors Redis hash fleet:region:{name}:summary. */
 export interface RegionSummary {
-  name: RegionName;
+  name: string;
   vehicle_count: number;
   alerts_per_1k: number;
   stranded_count?: number;

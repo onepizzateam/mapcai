@@ -1,8 +1,7 @@
 'use client';
 
 import { useFleetStore } from '@/store/fleetStore';
-import { REGION_NAMES } from '@/lib/regions';
-import type { RegionName } from '@/lib/types';
+import { HOTSPOTS } from '@/lib/regions';
 
 // MapControls — zoom buttons + region filter pills (agents.md §3).
 // Writes fleetStore.regionFilter; the region filter is mirrored to the URL by
@@ -18,7 +17,7 @@ export function MapControls({ onZoomIn, onZoomOut, onReset }: MapControlsProps) 
   const region = useFleetStore((s) => s.filters.region);
   const setFilters = useFleetStore((s) => s.setFilters);
 
-  const pick = (r: RegionName) => setFilters({ region: region === r ? null : r });
+  const pick = (r: string) => setFilters({ region: region === r ? null : r });
 
   return (
     <>
@@ -52,7 +51,7 @@ export function MapControls({ onZoomIn, onZoomOut, onReset }: MapControlsProps) 
 
       {/* Region filter pills — top-center, horizontally scrollable on mobile */}
       <div className="absolute inset-x-0 top-3 mx-auto flex max-w-[70%] flex-wrap justify-center gap-1">
-        {REGION_NAMES.map((r) => {
+        {HOTSPOTS.map(({ region: r }) => {
           const active = region === r;
           return (
             <button

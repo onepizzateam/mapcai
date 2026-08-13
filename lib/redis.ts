@@ -2,13 +2,11 @@ import { Redis } from '@upstash/redis';
 import type {
   BinSummary,
   FleetDiff,
-  RegionName,
   RegionSummary,
   TrendPoint,
   Vehicle,
   VehicleStatus,
 } from './types';
-import { REGION_NAMES } from './regions';
 
 // ---------------------------------------------------------------------------
 // Upstash Redis client + typed helpers (agents.md §2, §3).
@@ -27,6 +25,7 @@ export const KEYS = {
   /** Bin id index. Not in §2's list, but required: enumerating bins with SCAN
    *  inside a request path is unbounded work. A Set makes it one O(1) read. */
   binsIndex: 'fleet:bins:index',
+  regionsIndex: 'fleet:regions:index',
   bin: (id: string) => `fleet:bin:${id}`,
   binVehicles: (id: string) => `fleet:bin:${id}:vehicles`,
   vehicle: (id: string) => `fleet:vehicle:${id}`,
@@ -101,7 +100,7 @@ function toBin(id: string, h: Hash): BinSummary | null {
     energy_cost_today_inr: num(h.energy_cost_today_inr), charger_utilization_pct: num(h.charger_utilization_pct),
     open_exceptions: num(h.open_exceptions),
     alerts_per_1k: num(h.alerts_per_1k),
-    region: str(h.region) as RegionName,
+    region: str(h.region),
   };
 }
 
@@ -214,11 +213,12 @@ export async function getBinVehicles(id: string): Promise<Vehicle[]> {
 export async function getRegionSummaries(): Promise<RegionSummary[]> {
   const r = getRedis();
   const pipeline = r.pipeline();
-  for (const name of REGION_NAMES) pipeline.hgetall(KEYS.regionSummary(name));
+  const names = ((await r.smembers(KEYS.regionsIndex)) as string[]) ?? [];
+  for (const name of names) pipeline.hgetall(KEYS.regionSummary(name));
   const rows = (await pipeline.exec()) as Hash[];
 
   const out: RegionSummary[] = [];
-  REGION_NAMES.forEach((name, i) => {
+  names.forEach((name, i) => {
     const h = rows[i];
     if (!h || Object.keys(h).length === 0) return;
     out.push({
@@ -233,7 +233,7 @@ export async function getRegionSummaries(): Promise<RegionSummary[]> {
 }
 
 /** 24h avg-SOH trend for one region, oldest → newest. */
-export async function getRegionTrend(name: RegionName): Promise<TrendPoint[]> {
+export async function getRegionTrend(name: string): Promise<TrendPoint[]> {
   const raw = (await getRedis().zrange(KEYS.regionTrend(name), 0, -1, {
     withScores: true,
   })) as unknown[];
@@ -290,7 +290,7 @@ export async function releaseWriterLock(token: string): Promise<void> {
 
 export interface BinMutation {
   id: string;
-  region: RegionName;
+  region: string;
   vehicle_count: number;
   avg_soh: number;
   open_exceptions: number;
@@ -379,7 +379,7 @@ export async function commitMutations(
 }
 
 /** Vehicle-count-weighted avg SOH across the mutated bins of one region. */
-function averageSohForRegion(mutations: BinMutation[], region: RegionName): number | null {
+function averageSohForRegion(mutations: BinMutation[], region: string): number | null {
   let weight = 0;
   let sum = 0;
   for (const m of mutations) {
