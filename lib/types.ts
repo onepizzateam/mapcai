@@ -7,19 +7,7 @@ export type VehicleStatus = 'driving' | 'charging' | 'parked' | 'stranded';
 export type ChargeType = 'AC_slow' | 'DC_fast' | 'none';
 export type ThermalStatus = 'normal' | 'elevated' | 'critical';
 
-/*
-  | 'Delhi NCR'
-  | 'Mumbai'
-  | 'Bangalore'
-  | 'Hyderabad'
-  | 'Chennai'
-  | 'Pune'
-  | 'Surat'
-  | 'Ahmedabad'
-  | 'Dubai'
-  | 'Singapore'
-  | 'London'
-  | 'São Paulo';
+/* Region labels are resolved from coordinates at query/render time. */
 
 /** One hex bin summary — mirrors Redis hash fleet:bin:{id}. */
 export interface BinSummary {

@@ -23,6 +23,23 @@ export function BinDetail() {
 
   const [detail, setDetail] = useState<BinDetailPayload | null>(null);
   const [state, setState] = useState<LoadState>('idle');
+  const [locationLabel, setLocationLabel] = useState('');
+
+  useEffect(() => {
+    if (!bin) return;
+    const controller = new AbortController();
+    const fallback = `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`;
+    setLocationLabel(fallback);
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const url = token
+      ? `https://api.mapbox.com/geocoding/v5/mapbox.places/${bin.lng},${bin.lat}.json?types=place,region&limit=1&access_token=${encodeURIComponent(token)}`
+      : `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${bin.lat}&lon=${bin.lng}`;
+    fetch(url, { signal: controller.signal, headers: token ? undefined : { Accept: 'application/json' } })
+      .then((res) => res.json())
+      .then((data) => setLocationLabel(token ? data.features?.[0]?.place_name ?? fallback : data.display_name ?? fallback))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [bin]);
 
   useEffect(() => {
     if (!selectedBinId) {
@@ -61,7 +78,7 @@ export function BinDetail() {
     <div className="flex flex-col">
       <div className="flex items-start justify-between gap-2 border-b border-border p-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-text-muted">{bin.region}</p>
+          <p className="text-xs uppercase tracking-wide text-text-muted">Near {locationLabel}</p>
           <h2 className="font-mono text-sm text-text-primary">{bin.id}</h2>
           <p className="font-mono text-[10px] tabular-nums text-text-muted">
             {bin.lat.toFixed(3)}, {bin.lng.toFixed(3)}

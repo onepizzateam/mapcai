@@ -11,7 +11,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runSeed } from '../lib/seedRunner';
 import { generateBins } from '../lib/faker/seed';
-import { REGION_BOUNDS } from '../lib/regions';
 import { isRedisConfigured } from '../lib/redis';
 
 /**
@@ -74,11 +73,7 @@ async function main(): Promise<void> {
   const force = args.includes('--force');
   if (force) {
     console.log('First five bin coordinates:');
-    for (const bin of generateBins().slice(0, 5)) {
-      const bounds = REGION_BOUNDS[bin.region];
-      const inside = bin.lat > bounds.latMin && bin.lat < bounds.latMax && bin.lng > bounds.lngMin && bin.lng < bounds.lngMax;
-      console.log(`  ${bin.id} ${bin.region}: ${bin.lat}, ${bin.lng} ${inside ? 'OK' : 'OUT OF BOUNDS'}`);
-    }
+    for (const bin of generateBins().slice(0, 5)) console.log(`  ${bin.id}: ${bin.lat}, ${bin.lng}`);
   }
   console.log(force ? 'Seeding (forced re-seed)…' : 'Seeding…');
 

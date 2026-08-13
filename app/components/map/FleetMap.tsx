@@ -138,7 +138,7 @@ export function FleetMap() {
         width={size.w}
         height={size.h}
         role="img"
-        aria-label="Map of India showing fleet health by region"
+        aria-label="World map showing fleet health"
         className="block h-full w-full touch-none"
       >
         <rect

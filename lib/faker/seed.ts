@@ -1,5 +1,4 @@
 import { faker } from '@faker-js/faker';
-import { deriveRegion, HOTSPOTS, REGION_BOUNDS } from '@/lib/regions';
 import type {
   BinSummary,
   Vehicle,
@@ -31,7 +30,7 @@ const EV_MODELS = [
   { name: 'Ola S1 Pro', rated_range: 195 }, { name: 'Ather 450X', rated_range: 146 },
   { name: 'BYD Atto 3', rated_range: 521 }, { name: 'Hyundai Creta EV', rated_range: 473 },
 ];
-const ENERGY_COST: Record<string, number> = { 'Delhi NCR': 7.5, Mumbai: 9.2, Bangalore: 8.4, Hyderabad: 7.8, Chennai: 8.1, Pune: 8.6, Surat: 7.9, Ahmedabad: 7.7, Dubai: 8.8, Singapore: 10.2, London: 12.4, 'São Paulo': 7.1 };
+const ENERGY_COST_INR = 8.5;
 
 /** Reset faker to the fixed seed. Call once before any generation. */
 export function reseed(): void {
@@ -107,9 +106,8 @@ function sampleStatus(): VehicleStatus {
   return 'stranded';
 }
 
-function plate(region: string): string {
-  const state = region === 'Delhi NCR' ? 'DL' : region === 'Mumbai' || region === 'Pune' ? 'MH' : region === 'Bangalore' ? 'KA' : region === 'Chennai' ? 'TN' : region === 'Hyderabad' ? 'TS' : region === 'Surat' || region === 'Ahmedabad' ? 'GJ' : 'MH';
-  return `${state}-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${faker.string.alpha({ length: 2, casing: 'upper' })}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
+function plate(): string {
+  return `EV-${String(faker.number.int({ min: 1, max: 99 })).padStart(2, '0')}-${faker.string.alpha({ length: 2, casing: 'upper' })}-${String(faker.number.int({ min: 1, max: 9999 })).padStart(4, '0')}`;
 }
 
 // --- generators -----------------------------------------------------------
@@ -120,35 +118,14 @@ function plate(region: string): string {
  * Deterministic given the seed.
  */
 export function generateBins(): BinSummary[] {
-  // Keep the seeded footprint intentionally broad: many bins per metro make
-  // density visible while preserving the eight named fleet regions.
-  /* proportional allocation below */
-  /*
-    'Delhi NCR': 18,
-    Mumbai: 14,
-    Bangalore: 14,
-    Hyderabad: 12,
-    Chennai: 12,
-    Pune: 10,
-    Surat: 8,
-    Ahmedabad: 8,
-    Dubai: 16,
-    Singapore: 14,
-    London: 16,
-    'São Paulo': 14,
-  }; */
+  const INDIA = { latMin: 8, latMax: 35.5, lngMin: 68, lngMax: 97.5 };
   const bins: BinSummary[] = [];
-  const totalWeight = HOTSPOTS.reduce((s, h) => s + h.weight, 0);
-  let idx = 0;
-
-  for (const hs of HOTSPOTS) {
-    const nBins = Math.max(8, Math.round((hs.weight / totalWeight) * BIN_COUNT));
-    for (let i = 0; i < nBins; i++) {
-      const bounds = REGION_BOUNDS[hs.region];
-      const lat = bounds.latMin + faker.number.float({ min: 0, max: 1 }) * (bounds.latMax - bounds.latMin);
-      const lng = bounds.lngMin + faker.number.float({ min: 0, max: 1 }) * (bounds.lngMax - bounds.lngMin);
+  for (let i = 0; i < BIN_COUNT; i++) {
+      const isIndia = faker.number.float({ min: 0, max: 1 }) < 0.70;
+      const lat = faker.number.float({ min: isIndia ? INDIA.latMin : -55, max: isIndia ? INDIA.latMax : 70 });
+      const lng = faker.number.float({ min: isIndia ? INDIA.lngMin : -180, max: isIndia ? INDIA.lngMax : 180 });
       bins.push({
-        id: `bin_${String(idx).padStart(3, '0')}`,
+        id: `bin_${String(i).padStart(3, '0')}`,
         lat: round(lat, 4),
         lng: round(lng, 4),
         vehicle_count: 0,
@@ -160,12 +137,10 @@ export function generateBins(): BinSummary[] {
         charger_utilization_pct: 0,
         open_exceptions: 0,
         alerts_per_1k: 0,
-        region: deriveRegion(lat, lng),
+        region: '',
       });
-      idx++;
-    }
   }
-  return bins.slice(0, BIN_COUNT);
+  return bins;
 }
 
 export interface GeneratedFleet {
@@ -218,10 +193,10 @@ export function generateFleet(): GeneratedFleet {
       sohSum += soh;
       const v: Vehicle = {
         id: `veh_${String(vid).padStart(6, '0')}`,
-        plate: plate(bin.region), model: model.name, soc, status: effectiveStatus,
+        plate: plate(), model: model.name, soc, status: effectiveStatus,
         soh,
         degradation_rate: degradation, range_km: range, rated_range_km: model.rated_range,
-        energy_consumed_kwh: energy, energy_cost_inr: round(energy * ENERGY_COST[bin.region], 0),
+        energy_consumed_kwh: energy, energy_cost_inr: round(energy * ENERGY_COST_INR, 0),
         last_charge_duration_min: effectiveStatus === 'charging' ? faker.number.int({ min: 10, max: 180 }) : 0,
         charge_type: effectiveStatus === 'charging' ? faker.helpers.arrayElement(['AC_slow', 'DC_fast'] as const) : 'none',
         thermal_status: faker.helpers.weightedArrayElement([{ value: 'normal' as const, weight: 90 }, { value: 'elevated' as const, weight: 8 }, { value: 'critical' as const, weight: 2 }]),

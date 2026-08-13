@@ -1,8 +1,8 @@
 import { geoMercator, type GeoProjection } from 'd3-geo';
 import type { FeatureCollection, Geometry } from 'geojson';
 
-// D3 Mercator projection, parameterised by viewport bounds and the India
-// GeoJSON (agents.md §4). fitSize centres + scales the map to the container.
+// D3 Mercator projection sized to show the full world without geographic
+// clipping. The decorative country underlay and the H3 bins share this view.
 
 export interface ProjectionInput {
   width: number;
@@ -15,8 +15,8 @@ export interface ProjectionInput {
  * precision(0.1) keeps the state outlines crisp without over-tessellating.
  */
 export function buildProjection({ width, height, geo }: ProjectionInput): GeoProjection {
-  const padding = 40;
-  return geoMercator().center([78.9629, 22.5937]).scale(1000).translate([width / 2, height / 2]).precision(0.1);
+  const scale = Math.min(width / 6.4, height / 3.3);
+  return geoMercator().center([0, 20]).scale(scale).translate([width / 2, height / 2]).precision(0.1);
 }
 
 /** Project a [lng, lat] pair to [x, y] pixels, or null if unprojectable. */
