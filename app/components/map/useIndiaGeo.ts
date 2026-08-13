@@ -13,23 +13,36 @@ export interface GeoBundle {
 let cached: GeoBundle | null = null;
 let inflight: Promise<GeoBundle> | null = null;
 
+async function loadTopoJson(path: string): Promise<Topology> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`TopoJSON fetch failed: ${res.status}`);
+  return res.json() as Promise<Topology>;
+}
+
 async function loadGeo(): Promise<GeoBundle> {
   if (cached) return cached;
   if (inflight) return inflight;
 
-  inflight = fetch('/india-states.topo.json')
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`TopoJSON fetch failed: ${res.status}`);
-      return res.json() as Promise<Topology>;
-    })
-    .then((topo) => {
-      const statesKey = 'states' in topo.objects ? 'states' : Object.keys(topo.objects)[0];
-      if (!statesKey) throw new Error('TopoJSON contains no geometry objects');
-      const statesObject = topo.objects[statesKey] as GeometryCollection;
-      const states = feature(topo, statesObject) as unknown as FeatureCollection<Geometry>;
+  inflight = Promise.all([
+    loadTopoJson('/india-states.topo.json'),
+    loadTopoJson('/world-countries.topo.json'),
+  ])
+    .then(([indiaTopo, worldTopo]) => {
+      const indiaKey = 'states' in indiaTopo.objects ? 'states' : Object.keys(indiaTopo.objects)[0];
+      const worldKey = 'countries' in worldTopo.objects ? 'countries' : Object.keys(worldTopo.objects)[0];
+      if (!indiaKey || !worldKey) throw new Error('TopoJSON contains no geometry objects');
+
+      const indiaObject = indiaTopo.objects[indiaKey] as GeometryCollection;
+      const worldObject = worldTopo.objects[worldKey] as GeometryCollection;
+      const indiaStates = feature(indiaTopo, indiaObject) as unknown as FeatureCollection<Geometry>;
+      const worldCountries = feature(worldTopo, worldObject) as unknown as FeatureCollection<Geometry>;
+      const states: FeatureCollection<Geometry> = {
+        type: 'FeatureCollection',
+        features: [...worldCountries.features, ...indiaStates.features],
+      };
       const land = merge(
-        topo,
-        statesObject.geometries as unknown as Parameters<typeof merge>[1]
+        worldTopo,
+        worldObject.geometries as unknown as Parameters<typeof merge>[1]
       ) as unknown as Feature<MultiPolygon>;
       cached = { states, land };
       inflight = null;
