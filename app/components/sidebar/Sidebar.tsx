@@ -11,14 +11,13 @@ import { CountrySummary } from './CountrySummary';
 
 export function Sidebar() {
   const selectedBinId = useFleetStore((s) => s.selectedBinId);
-  const selectedCountry = useFleetStore((s) => s.selectedCountry);
 
   return (
     <aside
       className="flex h-full w-full flex-col overflow-y-auto bg-surface"
       aria-label="Fleet detail"
     >
-      {selectedBinId ? <BinDetail /> : selectedCountry ? <CountrySummary /> : <RegionSummary />}
+      {selectedBinId ? <CountrySummary /> : <RegionSummary />}
     </aside>
   );
 }

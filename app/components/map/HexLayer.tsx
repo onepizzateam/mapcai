@@ -98,7 +98,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
         const primary = d.bins.reduce((a, b) =>
           b.vehicle_count > a.vehicle_count ? b : a
         );
-        getFleetState().selectCountry(primary.country ?? null);
+        getFleetState().selectBin(primary.id);
       })
       .on('mouseenter', (_event, d) => {
         const primary = d.bins[0];
@@ -278,7 +278,7 @@ function handleHexKeydown(
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
     const primary = d.bins.reduce((a, b) => (b.vehicle_count > a.vehicle_count ? b : a));
-    getFleetState().selectCountry(primary.country ?? null);
+    getFleetState().selectBin(primary.id);
     return;
   }
 
