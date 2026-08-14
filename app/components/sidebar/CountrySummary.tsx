@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { geoContains } from 'd3-geo';
-import { feature } from 'topojson-client';
 import { useFleetStore } from '@/store/fleetStore';
 import type { BinDetail, BinSummary } from '@/lib/types';
 import { MetricRow } from '../ui/MetricRow';
@@ -12,10 +10,8 @@ const ZONES = ['North', 'South', 'East', 'West'] as const;
 
 export function CountrySummary() {
   const bins = useFleetStore((s) => s.bins);
-  const binIds = useMemo(() => bins.map((b) => b.id).join(','), [bins]);
   const selectedBinId = useFleetStore((s) => s.selectedBinId);
   const selectBin = useFleetStore((s) => s.selectBin);
-  const [countries, setCountries] = useState<Record<string, string>>(() => Object.fromEntries(bins.map((b) => [b.id, approximateCountry(b.lat, b.lng)])));
   const [detail, setDetail] = useState<BinDetail | null>(null);
   const [city, setCity] = useState('');
 
@@ -46,25 +42,9 @@ export function CountrySummary() {
     return () => controller.abort();
   }, [bins, selectedBinId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fallback = Object.fromEntries(bins.map((b) => [b.id, approximateCountry(b.lat, b.lng)]));
-    setCountries(fallback);
-    fetch('/world-countries.topo.json').then((r) => r.json()).then((topo) => {
-      const geo: any = feature(topo, topo.objects.countries);
-      const out: Record<string, string> = {};
-      for (const b of bins) {
-        const f = (geo.features ?? [geo]).find((x: any) => geoContains(x, [b.lng, b.lat]));
-        out[b.id] = f?.properties?.name ?? fallback[b.id];
-      }
-      if (!cancelled) setCountries(out);
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [binIds]);
-
   const selected = bins.find((b) => b.id === selectedBinId);
-  const country = selected ? countries[selected.id] : null;
-  const members = country ? bins.filter((b) => countries[b.id] === country) : [];
+  const country = selected ? approximateCountry(selected.lat, selected.lng) : null;
+  const members = country ? bins.filter((b) => approximateCountry(b.lat, b.lng) === country) : [];
   const total = members.reduce((n, b) => n + b.vehicle_count, 0);
   const fleet = bins.reduce((n, b) => n + b.vehicle_count, 0);
   const exceptions = members.reduce((n, b) => n + b.open_exceptions, 0);
