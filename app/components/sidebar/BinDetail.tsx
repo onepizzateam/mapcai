@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFleetStore, selectSelectedBin } from '@/store/fleetStore';
+import { useFleetStore, selectSelectedBin, getFleetState } from '@/store/fleetStore';
 import type { BinDetail as BinDetailPayload } from '@/lib/types';
 import { MetricRow } from '../ui/MetricRow';
 import { TrendSparkline } from './TrendSparkline';
@@ -87,7 +87,11 @@ export function BinDetail() {
         </div>
         <button
           type="button"
-          onClick={() => { selectBin(null); selectCountry(bin.country ?? null); }}
+          onClick={() => {
+            selectBin(null);
+            const hex = getFleetState().selectedHex;
+            if (!hex || hex.bins.length <= 1) selectCountry(bin.country ?? null);
+          }}
           className="rounded-md border border-border px-2 py-1 text-[11px] text-text-muted hover:border-border-strong hover:text-text-primary"
         >
           Back to regions

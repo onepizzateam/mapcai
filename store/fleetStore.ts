@@ -6,6 +6,7 @@ import type {
   ViewMode,
   VehicleStatus,
 } from '@/lib/types';
+import type { HexDatum } from '@/lib/hexbin';
 
 // ---------------------------------------------------------------------------
 // Zustand store (agents.md §3). Holds bins, region rollups, the current
@@ -37,6 +38,7 @@ interface FleetState {
 
   // Selection / hover
   selectedBinId: string | null;
+  selectedHex: HexDatum | null;
   selectedCountry: string | null;
   hoveredBinId: string | null;
 
@@ -61,6 +63,7 @@ interface FleetState {
   }) => void;
   applyDiff: (diff: FleetDiff) => void;
   selectBin: (id: string | null) => void;
+  selectHex: (hex: HexDatum | null) => void;
   hoverBin: (id: string | null) => void;
   selectCountry: (country: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -78,6 +81,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   diffVersion: 0,
 
   selectedBinId: null,
+  selectedHex: null,
   selectedCountry: null,
   hoveredBinId: null,
 
@@ -126,7 +130,8 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   },
 
   selectBin: (id) => set({ selectedBinId: id }),
-  selectCountry: (country) => set({ selectedCountry: country, selectedBinId: null }),
+  selectHex: (hex) => set({ selectedHex: hex, selectedBinId: hex?.bins.length === 1 ? hex.bins[0].id : null }),
+  selectCountry: (country) => set({ selectedCountry: country, selectedBinId: null, selectedHex: null }),
   hoverBin: (id) => set({ hoveredBinId: id }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setZoomTier: (tier) => set({ zoomTier: tier }),

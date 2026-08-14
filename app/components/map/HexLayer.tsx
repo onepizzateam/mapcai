@@ -86,12 +86,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
       .attr('fill', (d) => fillFor(d, dMax, mode).fill)
       .attr('fill-opacity', (d) => fillFor(d, dMax, mode).fillOpacity)
       .on('click', (_event, d) => {
-        // Selecting the largest source bin is the useful default for a hex
-        // that aggregates several bins at overview tier.
-        const primary = d.bins.reduce((a, b) =>
-          b.vehicle_count > a.vehicle_count ? b : a
-        );
-        getFleetState().selectBin(primary.id);
+        getFleetState().selectHex(d);
       })
       .on('mouseenter', (_event, d) => {
         const primary = d.bins[0];
@@ -253,8 +248,7 @@ function handleHexKeydown(
   // Enter / Space select, matching role="button" semantics.
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
-    const primary = d.bins.reduce((a, b) => (b.vehicle_count > a.vehicle_count ? b : a));
-    getFleetState().selectBin(primary.id);
+    getFleetState().selectHex(d);
     return;
   }
 

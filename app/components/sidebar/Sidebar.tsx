@@ -4,6 +4,7 @@ import { useFleetStore } from '@/store/fleetStore';
 import { RegionSummary } from './RegionSummary';
 import { BinDetail } from './BinDetail';
 import { CountrySummary } from './CountrySummary';
+import { HexDetail } from './HexDetail';
 
 // Sidebar — region summary ↔ bin detail, conditionally rendered on selection
 // (agents.md §3). Only the selectedBinId scalar is read here, so switching views
@@ -11,13 +12,15 @@ import { CountrySummary } from './CountrySummary';
 
 export function Sidebar() {
   const selectedBinId = useFleetStore((s) => s.selectedBinId);
+  const selectedHex = useFleetStore((s) => s.selectedHex);
+  const selectedCountry = useFleetStore((s) => s.selectedCountry);
 
   return (
     <aside
       className="flex h-full w-full flex-col overflow-y-auto bg-surface"
       aria-label="Fleet detail"
     >
-      {selectedBinId ? <CountrySummary /> : <RegionSummary />}
+      {selectedBinId ? <BinDetail /> : selectedHex && selectedHex.bins.length > 1 ? <HexDetail hex={selectedHex} /> : selectedHex ? <BinDetail /> : selectedCountry ? <CountrySummary /> : <RegionSummary />}
     </aside>
   );
 }
