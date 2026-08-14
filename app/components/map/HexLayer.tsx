@@ -40,7 +40,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
   const gRef = useRef<SVGGElement | null>(null);
   // Latest density max, kept available to the out-of-React SSE handler so it
   // can recolour without re-binning. Declared before the effects that use it.
-  const lastRenderRef = useRef<{ dMax: number }>({ dMax: 1 });
+  const lastRenderRef = useRef<{ dMax: number; socDomain: [number, number] }>({ dMax: 1, socDomain: [0, 100] });
 
   // Re-bin ONLY when the inputs that change binning change: projection,
   // radius (tier), or the set of bins (filter). NOT on SSE ticks — those
@@ -61,6 +61,10 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
 
     const hexes = binHexes(visible, projection, radius, width, height);
     const dMax = maxDensity(hexes);
+    const socs = hexes.map((h) => h.avg_soc).sort((a, b) => a - b);
+    const socDomain: [number, number] = socs.length < 4
+      ? [0, 100]
+      : [Math.max(0, socs[Math.floor(socs.length * 0.05)] ?? 0), Math.min(100, socs[Math.ceil(socs.length * 0.95)] ?? 100)];
     const mode = getFleetState().viewMode;
     const path = hexPath(radius);
 
@@ -83,8 +87,8 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
       .attr('stroke-width', 0.5)
       .attr('tabindex', -1)
       .attr('role', 'button')
-      .attr('fill', (d) => fillFor(d, dMax, mode).fill)
-      .attr('fill-opacity', (d) => fillFor(d, dMax, mode).fillOpacity)
+      .attr('fill', (d) => fillFor(d, dMax, mode, socDomain).fill)
+      .attr('fill-opacity', (d) => fillFor(d, dMax, mode, socDomain).fillOpacity)
       .on('click', (_event, d) => {
         // Selecting the largest source bin is the useful default for a hex
         // that aggregates several bins at overview tier.
@@ -117,8 +121,8 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
     sel
       .attr('d', path)
       .attr('transform', (d) => `translate(${d.x},${d.y})`)
-      .attr('fill', (d) => fillFor(d, dMax, mode).fill)
-      .attr('fill-opacity', (d) => fillFor(d, dMax, mode).fillOpacity);
+      .attr('fill', (d) => fillFor(d, dMax, mode, socDomain).fill)
+      .attr('fill-opacity', (d) => fillFor(d, dMax, mode, socDomain).fillOpacity);
 
     enter.append('title'); // native tooltip fallback; rich tooltip is separate
     root
@@ -137,7 +141,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
 
     // Stash the current density max + hexes so the SSE subscription can recolour
     // without re-binning.
-    lastRenderRef.current = { dMax };
+    lastRenderRef.current = { dMax, socDomain };
   }, [bins, regionFilter, projection, width, height, radius, labelThreshold, viewMode]);
 
   // -------------------------------------------------------------------------
@@ -153,6 +157,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
 
       const mode: ViewMode = state.viewMode;
       const dMax = lastRenderRef.current.dMax;
+      const socDomain = lastRenderRef.current.socDomain;
 
       const paths = select(g).selectAll<SVGPathElement, HexDatum>('path.hex');
       const reduced = prefersReducedMotion();
@@ -160,7 +165,7 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
       paths.each(function (d) {
         // Recompute the hex aggregate from its (mutated-in-place) source bins.
         const agg = reaggregate(d);
-        const { fill, fillOpacity } = fillFor(agg, dMax, mode);
+        const { fill, fillOpacity } = fillFor(agg, dMax, mode, socDomain);
         const node = select(this);
         if (reduced) {
           node.interrupt().attr('fill', fill).attr('fill-opacity', fillOpacity);
@@ -204,7 +209,7 @@ function reaggregate(d: HexDatum): HexDatum {
   return d;
 }
 
-function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
+function fillFor(d: HexDatum, dMax: number, mode: ViewMode, socDomain: [number, number]) {
   // At overview zoom, a hex can aggregate several source bins. Preserve the
   // most urgent source-bin signal so a stranded cluster cannot disappear into
   // a harmless-looking weighted average.
@@ -224,7 +229,8 @@ function fillFor(d: HexDatum, dMax: number, mode: ViewMode) {
       urgencyOverride: peakUrgency,
     },
     d.vehicle_count / 800,
-    mode
+    mode,
+    socDomain
   );
 }
 

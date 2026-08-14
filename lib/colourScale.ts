@@ -38,12 +38,15 @@ export function healthIndex(bin: Pick<BinSummary, 'avg_soh' | 'open_exceptions' 
 }
 
 // Diverging hue ramp. d3 interpolates through the amber midpoint, giving the
-// three-stop red → amber → blue scale the spec calls for.
-const hueScale = scaleSequential(interpolateRgbBasis([HEALTH_HIGH, HEALTH_MID, HEALTH_LOW])).domain([0, 1]);
+// three-stop red → amber → green scale the spec calls for.
+// The low-SOC end is unhealthy/red; the high-SOC end is healthy/green.
 
 /** Map a health index in [0,1] to a colourblind-safe hue. */
-export function healthColour(index: number): string {
-  return hueScale(clamp01(index));
+export function healthColour(index: number, domain: [number, number] = [0, 1]): string {
+  const scale = scaleSequential(interpolateRgbBasis([HEALTH_LOW, HEALTH_MID, HEALTH_HIGH]))
+    .domain(domain)
+    .clamp(true);
+  return scale(index);
 }
 
 /**
@@ -79,20 +82,20 @@ export interface BinFillInput extends Pick<BinSummary, 'avg_soc' | 'avg_soh' | '
 export function binFill(
   bin: BinFillInput,
   densityNorm: number,
-  mode: ViewMode
+  mode: ViewMode,
+  socDomain: [number, number] = [0, 100]
 ): FillResult {
   const soc = bin.avg_soc ?? bin.avg_soh ?? 50;
-  const healthNorm = clamp01(soc / 100);
   const strandedBoost = Math.min(1, ((bin.stranded_count ?? 0) / Math.max(1, bin.vehicle_count)) * 20);
-  const finalHealth = clamp01(healthNorm - strandedBoost);
+  const effectiveSoc = Math.max(0, soc - strandedBoost * soc);
   switch (mode) {
     case 'health':
-      return { fill: healthColour(finalHealth), fillOpacity: OPACITY_MAX };
+      return { fill: healthColour(effectiveSoc, socDomain), fillOpacity: OPACITY_MAX };
     case 'density':
       return { fill: DENSITY_NEUTRAL, fillOpacity: densityOpacity(densityNorm) };
     case 'combined':
     default:
-      return { fill: healthColour(finalHealth), fillOpacity: densityOpacity(densityNorm) };
+      return { fill: healthColour(effectiveSoc, socDomain), fillOpacity: densityOpacity(densityNorm) };
   }
 }
 

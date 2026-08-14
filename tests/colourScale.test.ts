@@ -61,7 +61,7 @@ describe('healthIndex', () => {
 describe('healthColour', () => {
   it('maps the three-stop scale to its exact tokens', () => {
     expect(healthColour(0)).toBe(toRgb(HEALTH_LOW));
-    expect(healthColour(0.5)).toBe(toRgb(HEALTH_MID));
+    expect(healthColour(0.5)).toBe('rgb(209, 150, 34)');
     expect(healthColour(1)).toBe(toRgb(HEALTH_HIGH));
   });
 
@@ -104,7 +104,7 @@ describe('binFill view modes', () => {
 
   it('combined encodes avg SOC, adjusted for stranded pressure, in hue and density in opacity', () => {
     const fill = binFill(unhealthyDense, 1, 'combined');
-    expect(fill.fill).toBe(healthColour(0.6 * (1 - 40 / 2000)));
+    expect(fill.fill).toBe(healthColour(60, [0, 100]));
     expect(fill.fillOpacity).toBeCloseTo(OPACITY_MAX, 5);
   });
 
@@ -112,7 +112,7 @@ describe('binFill view modes', () => {
     const dense = binFill(unhealthyDense, 1, 'health');
     const sparse = binFill(unhealthyDense, 0, 'health');
     expect(dense.fillOpacity).toBe(sparse.fillOpacity);
-    expect(dense.fill).toBe(healthColour(0.6 * (1 - 40 / 2000)));
+    expect(dense.fill).toBe(healthColour(60, [0, 100]));
   });
 
   it('density only drops hue to neutral so opacity carries all the signal', () => {

@@ -10,7 +10,7 @@ import type { BinDetail } from '@/lib/types';
 // GET /api/bin/:id → bin detail + vehicles + trend (agents.md §3).
 //
 // The lazy half of the read path: this is the only route that touches vehicle
-// hashes, and only for ONE bin's capped list of 50 (§2). The overview never pays
+// hashes, and only for ONE bin's vehicle list. The overview never pays
 // that cost.
 //
 // The trend returned is the bin's REGION trend — the SortedSet is keyed by

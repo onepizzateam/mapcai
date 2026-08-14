@@ -130,7 +130,7 @@ export async function runSeed(options: SeedOptions = {}): Promise<SeedResult> {
     }
   }
 
-  // 2. Bin hashes + per-bin vehicle lists (SOC-ascending, capped at 50).
+  // 2. Bin hashes + per-bin vehicle lists (SOC-ascending).
   for (let i = 0; i < bins.length; i += 25) {
     const pipeline = r.pipeline();
     for (const b of bins.slice(i, i + 25)) {

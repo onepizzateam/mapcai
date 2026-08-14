@@ -68,7 +68,6 @@ function isOnLand(lat: number, lng: number): boolean {
 export const SEED = 42;
 export const TOTAL_VEHICLES = 25_000;
 export const BIN_COUNT = 500;
-export const VEHICLE_LIST_CAP = 50; // per-bin list trimmed to 50 (agents.md §2)
 
 const MODELS_BY_REGION: Record<string, { name: string; rated_range: number }[]> = {
   india: [
@@ -257,7 +256,7 @@ export function generateBins(): ({ bin: BinSummary; regionHint: string } & BinSu
 export interface GeneratedFleet {
   bins: BinSummary[];
   vehicles: Vehicle[];
-  vehiclesByBin: Map<string, Vehicle[]>; // SOC-ascending, capped
+  vehiclesByBin: Map<string, Vehicle[]>; // SOC-ascending
   regions: RegionSummary[];
   trends: Map<string, TrendPoint[]>;
 }
@@ -343,9 +342,9 @@ export function generateFleet(): GeneratedFleet {
     bin.open_exceptions = exceptions;
     bin.alerts_per_1k = round((exceptions / n) * 1000, 1);
 
-    // Per-bin list: SOC-ascending (most critical first), capped at 50.
+    // Per-bin list: SOC-ascending (most critical first).
     list.sort((a, b) => a.soc - b.soc);
-    vehiclesByBin.set(bin.id, list.slice(0, VEHICLE_LIST_CAP));
+    vehiclesByBin.set(bin.id, list);
   });
 
   const regions = rollupRegions(bins);
