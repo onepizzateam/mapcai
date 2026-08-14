@@ -129,7 +129,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     }));
   },
 
-  selectBin: (id) => set({ selectedBinId: id }),
+  selectBin: (id) => set({ selectedBinId: id, selectedHex: id ? null : null }),
   selectHex: (hex) => set({ selectedHex: hex, selectedBinId: hex?.bins.length === 1 ? hex.bins[0].id : null }),
   selectCountry: (country) => set({ selectedCountry: country, selectedBinId: null, selectedHex: null }),
   hoverBin: (id) => set({ hoveredBinId: id }),
