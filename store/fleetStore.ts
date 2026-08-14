@@ -41,6 +41,7 @@ interface FleetState {
   selectedHex: HexDatum | null;
   selectedCountry: string | null;
   hoveredBinId: string | null;
+  hoveredHex: HexDatum | null;
 
   // View
   viewMode: ViewMode;
@@ -84,6 +85,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   selectedHex: null,
   selectedCountry: null,
   hoveredBinId: null,
+  hoveredHex: null,
 
   viewMode: 'combined',
   zoomTier: 0,
@@ -132,7 +134,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   selectBin: (id) => set({ selectedBinId: id, selectedHex: id ? null : null }),
   selectHex: (hex) => set({ selectedHex: hex, selectedBinId: hex?.bins.length === 1 ? hex.bins[0].id : null }),
   selectCountry: (country) => set({ selectedCountry: country, selectedBinId: null, selectedHex: null }),
-  hoverBin: (id) => set({ hoveredBinId: id }),
+  hoverBin: (id) => set({ hoveredBinId: id, hoveredHex: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setZoomTier: (tier) => set({ zoomTier: tier }),
   setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),

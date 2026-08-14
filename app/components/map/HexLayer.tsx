@@ -89,20 +89,20 @@ export function HexLayer({ projection, width = 0, height = 0, radius, labelThres
         getFleetState().selectHex(d);
       })
       .on('mouseenter', (_event, d) => {
-        const primary = d.bins[0];
-        getFleetState().hoverBin(primary ? primary.id : null);
-        highlightCountry(g, primary?.country ?? null);
+        getFleetState().hoverBin(null);
+        useFleetStore.setState({ hoveredHex: d });
+        highlightCountry(g, d.bins[0]?.country ?? null);
       })
-      .on('mouseleave', () => { getFleetState().hoverBin(null); highlightCountry(g, null); })
+      .on('mouseleave', () => { getFleetState().hoverBin(null); useFleetStore.setState({ hoveredHex: null }); highlightCountry(g, null); })
       // Keyboard fallback for the hover tooltip (agents.md §6): focus behaves
       // exactly like hover, so the tooltip is reachable without a pointer.
       .on('focus', function (_event, d) {
-        const primary = d.bins[0];
-        getFleetState().hoverBin(primary ? primary.id : null);
-        highlightCountry(g, primary?.country ?? null);
+        getFleetState().hoverBin(null);
+        useFleetStore.setState({ hoveredHex: d });
+        highlightCountry(g, d.bins[0]?.country ?? null);
         moveRovingTabindex(this);
       })
-      .on('blur', () => { getFleetState().hoverBin(null); highlightCountry(g, null); })
+      .on('blur', () => { getFleetState().hoverBin(null); useFleetStore.setState({ hoveredHex: null }); highlightCountry(g, null); })
       .on('keydown', function (event: KeyboardEvent, d) {
         handleHexKeydown(event, d, this, gRef.current);
       });

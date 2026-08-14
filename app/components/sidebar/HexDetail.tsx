@@ -11,6 +11,7 @@ const ZONES = ['North', 'South', 'East', 'West'] as const;
 export function HexDetail({ hex }: { hex: HexDatum }) {
   const selectHex = useFleetStore((s) => s.selectHex);
   const [trends, setTrends] = useState<TrendPoint[]>([]);
+  const [placeNames, setPlaceNames] = useState<Record<string, string>>({});
   const memberKey = hex.bins.map((b) => b.id).join(',');
 
   useEffect(() => {
@@ -18,6 +19,19 @@ export function HexDetail({ hex }: { hex: HexDatum }) {
     Promise.all(hex.bins.map((bin) => fetch(`/api/bin/${encodeURIComponent(bin.id)}`, { signal: controller.signal }).then((r) => r.ok ? r.json() as Promise<BinDetail> : null).catch(() => null)))
       .then((details) => setTrends(weightedTrend(hex.bins, details.filter((d): d is BinDetail => Boolean(d)))))
       .catch(() => undefined);
+    return () => controller.abort();
+  }, [memberKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all(hex.bins.map(async (bin) => {
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${bin.lat}&lon=${bin.lng}`, { signal: controller.signal, headers: { Accept: 'application/json' } });
+        const data = await r.json();
+        const a = data.address ?? {};
+        return [bin.id, a.suburb ?? a.town ?? a.village ?? a.municipality ?? a.county ?? bin.region ?? `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`] as const;
+      } catch { return [bin.id, bin.region || `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`] as const; }
+    })).then((entries) => setPlaceNames(Object.fromEntries(entries))).catch(() => undefined);
     return () => controller.abort();
   }, [memberKey]);
 
@@ -33,7 +47,7 @@ export function HexDetail({ hex }: { hex: HexDatum }) {
     <section><h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Country zones</h3>{zones.map((z) => <div key={z.name} className="mb-3"><div className="flex justify-between text-xs"><span>{z.name}</span><span className="font-mono">{z.share.toFixed(1)}%</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-border"><div className="h-full rounded-full bg-accent" style={{ width: `${z.share}%` }} /></div><p className="mt-1 text-[10px] text-text-muted">{z.vehicles.toLocaleString()} vehicles · {z.vehicles ? (z.alerts / z.vehicles * 1000).toFixed(1) : '0.0'} alerts/1k</p></div>)}</section>
     <section className="border-t border-border pt-4"><p className="text-[10px] uppercase tracking-wide text-text-muted">Selected hex</p><div className="mt-1 flex items-end justify-between"><div><p className="text-3xl font-semibold tracking-tight text-text-primary">{aggregate.vehicle_count.toLocaleString()}</p><p className="text-xs text-text-muted">vehicles · {hex.bins.length} areas</p></div><span className="rounded-full bg-accent/10 px-2 py-1 text-[10px] font-medium text-accent">{share.toFixed(1)}% of fleet</span></div><div className="mt-3 grid grid-cols-2 gap-2">{[["Vehicles", aggregate.vehicle_count.toLocaleString()], ["Avg SOH", `${aggregate.avg_soh.toFixed(1)}%`], ["Avg range remaining", `${Math.round(aggregate.avg_range_km)} km`], ["Avg SOC", `${aggregate.avg_soc.toFixed(1)}%`], ["Degradation rate", `${aggregate.avg_degradation_rate.toFixed(1)}%/yr`], ["Energy spend today", `₹${aggregate.energy_cost_today_inr.toLocaleString()}`], ["Open exceptions", `${aggregate.open_exceptions} · ${aggregate.vehicle_count ? (aggregate.open_exceptions / aggregate.vehicle_count * 1000).toFixed(1) : '0.0'}/1k`], ["Share of fleet", `${share.toFixed(1)}%`]].map(([label, value]) => <div key={label} className="rounded-md border border-border bg-surface p-2"><p className="text-[10px] text-text-muted">{label}</p><p className="mt-1 font-mono text-sm tabular-nums text-text-primary">{value}</p></div>)}</div></section>
     <SocTrend data={trends} />
-    <section className="border-t border-border pt-4"><p className="text-[10px] uppercase tracking-wide text-text-muted">Areas</p><div className="mt-2 flex flex-col">{ranked.map((bin) => <button key={bin.id} type="button" onClick={() => getFleetState().selectBin(bin.id)} className="flex items-center justify-between gap-2 border-b border-border py-3 text-left hover:bg-bg"><span className="min-w-0 flex-1 truncate"><span className="block text-xs text-text-primary">{bin.region || 'Unknown area'}</span><span className="block font-mono text-[10px] text-text-muted">{bin.lat.toFixed(3)}, {bin.lng.toFixed(3)}</span></span><span className="text-[11px]">{(bin.avg_soc ?? 0).toFixed(0)}%</span><span className="font-mono text-[11px] tabular-nums">{bin.vehicle_count.toLocaleString()}</span></button>)}</div></section>
+    <section className="border-t border-border pt-4"><p className="text-[10px] uppercase tracking-wide text-text-muted">Areas</p><div className="mt-2 flex flex-col">{ranked.map((bin) => <button key={bin.id} type="button" onClick={() => getFleetState().selectBin(bin.id)} className="flex items-center justify-between gap-2 border-b border-border py-3 text-left hover:bg-bg"><span className="min-w-0 flex-1 truncate"><span className="block text-xs text-text-primary">Near {placeNames[bin.id] || bin.region || `${bin.lat.toFixed(3)}, ${bin.lng.toFixed(3)}`}</span><span className="block text-[10px] text-text-muted">avg SOC - {(bin.avg_soc ?? 0).toFixed(1)}%</span></span><span className="font-mono text-[11px] tabular-nums">{bin.vehicle_count.toLocaleString()}</span></button>)}</div></section>
   </div>;
 }
 
