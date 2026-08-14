@@ -43,8 +43,8 @@ export function CountrySummary() {
   }, [bins, selectedBinId]);
 
   const selected = bins.find((b) => b.id === selectedBinId);
-  const country = selected ? approximateCountry(selected.lat, selected.lng) : null;
-  const members = country ? bins.filter((b) => approximateCountry(b.lat, b.lng) === country) : [];
+  const country = selected ? (selected.country || approximateCountry(selected.lat, selected.lng)) : null;
+  const members = country ? bins.filter((b) => (b.country || approximateCountry(b.lat, b.lng)) === country) : [];
   const total = members.reduce((n, b) => n + b.vehicle_count, 0);
   const fleet = bins.reduce((n, b) => n + b.vehicle_count, 0);
   const exceptions = members.reduce((n, b) => n + b.open_exceptions, 0);
