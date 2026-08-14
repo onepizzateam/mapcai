@@ -67,9 +67,7 @@ export interface FillResult {
   fillOpacity: number;
 }
 
-export interface BinFillInput extends Pick<BinSummary, 'avg_soc' | 'avg_soh' | 'open_exceptions' | 'stranded_count' | 'critical_soc_count' | 'vehicle_count'> {
-  urgencyOverride?: number;
-}
+export interface BinFillInput extends Pick<BinSummary, 'avg_soc' | 'avg_soh' | 'vehicle_count'> {}
 
 /**
  * Single entry point the D3 layer calls per hex. Branches on view mode — three
@@ -83,19 +81,16 @@ export function binFill(
   bin: BinFillInput,
   densityNorm: number,
   mode: ViewMode,
-  socDomain: [number, number] = [0, 100]
 ): FillResult {
   const soc = bin.avg_soc ?? bin.avg_soh ?? 50;
-  const strandedBoost = Math.min(50, ((bin.stranded_count ?? 0) / Math.max(1, bin.vehicle_count)) * 100);
-  const effectiveSoc = Math.max(0, soc - strandedBoost);
   switch (mode) {
     case 'health':
-      return { fill: healthColour(effectiveSoc), fillOpacity: OPACITY_MAX };
+      return { fill: healthColour(soc), fillOpacity: OPACITY_MAX };
     case 'density':
       return { fill: DENSITY_NEUTRAL, fillOpacity: densityOpacity(densityNorm) };
     case 'combined':
     default:
-      return { fill: healthColour(effectiveSoc), fillOpacity: densityOpacity(densityNorm) };
+      return { fill: healthColour(soc), fillOpacity: densityOpacity(densityNorm) };
   }
 }
 

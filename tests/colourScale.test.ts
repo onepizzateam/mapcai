@@ -103,31 +103,29 @@ describe('densityOpacity', () => {
 });
 
 describe('binFill view modes', () => {
-  const unhealthyDense = bin(35, 40, 2000);
-
-  it('combined encodes avg SOC, adjusted for stranded pressure, in hue and density in opacity', () => {
-    const fill = binFill(unhealthyDense, 1, 'combined');
+  it('combined encodes avg SOC in hue and density in opacity', () => {
+    const fill = binFill({ avg_soc: 35, avg_soh: 35, vehicle_count: 2000 }, 1, 'combined');
     expect(fill.fill).toBe(healthColour(35));
     expect(fill.fillOpacity).toBeCloseTo(OPACITY_MAX, 5);
   });
 
   it('health only holds opacity flat so the SOC-based hue carries all the signal', () => {
-    const dense = binFill(unhealthyDense, 1, 'health');
-    const sparse = binFill(unhealthyDense, 0, 'health');
+    const dense = binFill({ avg_soc: 35, avg_soh: 35, vehicle_count: 2000 }, 1, 'health');
+    const sparse = binFill({ avg_soc: 35, avg_soh: 35, vehicle_count: 2000 }, 0, 'health');
     expect(dense.fillOpacity).toBe(sparse.fillOpacity);
     expect(dense.fill).toBe(healthColour(35));
   });
 
   it('density only drops hue to neutral so opacity carries all the signal', () => {
-    const fill = binFill(unhealthyDense, 0.5, 'density');
+    const fill = binFill({ avg_soc: 35, avg_soh: 35, vehicle_count: 2000 }, 0.5, 'density');
     expect(fill.fill).toBe(DENSITY_NEUTRAL);
     expect(fill.fillOpacity).toBeCloseTo(densityOpacity(0.5), 5);
   });
 
   it('gives density-identical bins different hues when avg SOC differs', () => {
     // Restates the SOC-versus-density distinction at the level the D3 layer actually calls.
-    const sick = binFill(bin(35, 40, 2000), 1, 'combined');
-    const well = binFill(bin(97, 2, 2000), 1, 'combined');
+    const sick = binFill({ avg_soc: 35, avg_soh: 35, vehicle_count: 2000 }, 1, 'combined');
+    const well = binFill({ avg_soc: 97, avg_soh: 97, vehicle_count: 2000 }, 1, 'combined');
     expect(sick.fillOpacity).toBeCloseTo(well.fillOpacity, 5);
     expect(sick.fill).not.toBe(well.fill);
   });
