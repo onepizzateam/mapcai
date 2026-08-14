@@ -1,4 +1,4 @@
-import { scaleLinear, scaleSequential } from 'd3-scale';
+import { scaleLinear } from 'd3-scale';
 import { interpolateRgbBasis } from 'd3-interpolate';
 import type { BinSummary, ViewMode } from './types';
 
@@ -41,12 +41,12 @@ export function healthIndex(bin: Pick<BinSummary, 'avg_soh' | 'open_exceptions' 
 // three-stop red → amber → green scale the spec calls for.
 // The low-SOC end is unhealthy/red; the high-SOC end is healthy/green.
 
-/** Map a health index in [0,1] to a colourblind-safe hue. */
-export function healthColour(index: number, domain: [number, number] = [0, 1]): string {
-  const scale = scaleSequential(interpolateRgbBasis([HEALTH_LOW, HEALTH_MID, HEALTH_HIGH]))
-    .domain(domain)
-    .clamp(true);
-  return scale(index);
+/** Map raw SOC in [0,100] to a colourblind-safe hue. */
+export function healthColour(soc: number): string {
+  if (soc <= 20) return HEALTH_LOW;
+  if (soc >= 50) return HEALTH_HIGH;
+  const t = (soc - 20) / 30;
+  return interpolateRgbBasis([HEALTH_LOW, HEALTH_MID, HEALTH_HIGH])(t);
 }
 
 /**
@@ -86,16 +86,16 @@ export function binFill(
   socDomain: [number, number] = [0, 100]
 ): FillResult {
   const soc = bin.avg_soc ?? bin.avg_soh ?? 50;
-  const strandedBoost = Math.min(1, ((bin.stranded_count ?? 0) / Math.max(1, bin.vehicle_count)) * 20);
-  const effectiveSoc = Math.max(0, soc - strandedBoost * soc);
+  const strandedBoost = Math.min(50, ((bin.stranded_count ?? 0) / Math.max(1, bin.vehicle_count)) * 100);
+  const effectiveSoc = Math.max(0, soc - strandedBoost);
   switch (mode) {
     case 'health':
-      return { fill: healthColour(effectiveSoc, socDomain), fillOpacity: OPACITY_MAX };
+      return { fill: healthColour(effectiveSoc), fillOpacity: OPACITY_MAX };
     case 'density':
       return { fill: DENSITY_NEUTRAL, fillOpacity: densityOpacity(densityNorm) };
     case 'combined':
     default:
-      return { fill: healthColour(effectiveSoc, socDomain), fillOpacity: densityOpacity(densityNorm) };
+      return { fill: healthColour(effectiveSoc), fillOpacity: densityOpacity(densityNorm) };
   }
 }
 

@@ -60,24 +60,27 @@ describe('healthIndex', () => {
 
 describe('healthColour', () => {
   it('maps the three-stop scale to its exact tokens', () => {
-    expect(healthColour(0)).toBe(toRgb(HEALTH_LOW));
-    expect(healthColour(0.5)).toBe('rgb(209, 150, 34)');
-    expect(healthColour(1)).toBe(toRgb(HEALTH_HIGH));
+    expect(healthColour(0)).toBe(HEALTH_LOW);
+    expect(healthColour(20)).toBe(HEALTH_LOW);
+    expect(healthColour(50)).toBe(HEALTH_HIGH);
+    expect(healthColour(100)).toBe(HEALTH_HIGH);
+    expect(healthColour(35)).not.toBe(HEALTH_LOW);
+    expect(healthColour(35)).not.toBe(HEALTH_HIGH);
   });
 
   it('runs red → amber → blue, not a single hue', () => {
     // Guards the palette decision in agents.md §7: a single-hue (purple) ramp
     // loses perceptual resolution, so red must dominate the unhealthy end and
     // blue the healthy end.
-    const [lowR, , lowB] = channels(healthColour(0));
-    const [highR, , highB] = channels(healthColour(1));
+    const [lowR, , lowB] = channels(toRgb(healthColour(0)));
+    const [highR, , highB] = channels(toRgb(healthColour(50)));
     expect(lowR).toBeGreaterThan(lowB);
     expect(highB).toBeGreaterThan(highR);
   });
 
   it('clamps out-of-range indices to the scale ends', () => {
-    expect(healthColour(-1)).toBe(toRgb(HEALTH_LOW));
-    expect(healthColour(2)).toBe(toRgb(HEALTH_HIGH));
+    expect(healthColour(-10)).toBe(HEALTH_LOW);
+    expect(healthColour(110)).toBe(HEALTH_HIGH);
   });
 });
 
@@ -100,11 +103,11 @@ describe('densityOpacity', () => {
 });
 
 describe('binFill view modes', () => {
-  const unhealthyDense = bin(60, 40, 2000);
+  const unhealthyDense = bin(35, 40, 2000);
 
   it('combined encodes avg SOC, adjusted for stranded pressure, in hue and density in opacity', () => {
     const fill = binFill(unhealthyDense, 1, 'combined');
-    expect(fill.fill).toBe(healthColour(60, [0, 100]));
+    expect(fill.fill).toBe(healthColour(35));
     expect(fill.fillOpacity).toBeCloseTo(OPACITY_MAX, 5);
   });
 
@@ -112,7 +115,7 @@ describe('binFill view modes', () => {
     const dense = binFill(unhealthyDense, 1, 'health');
     const sparse = binFill(unhealthyDense, 0, 'health');
     expect(dense.fillOpacity).toBe(sparse.fillOpacity);
-    expect(dense.fill).toBe(healthColour(60, [0, 100]));
+    expect(dense.fill).toBe(healthColour(35));
   });
 
   it('density only drops hue to neutral so opacity carries all the signal', () => {
@@ -123,7 +126,7 @@ describe('binFill view modes', () => {
 
   it('gives density-identical bins different hues when avg SOC differs', () => {
     // Restates the SOC-versus-density distinction at the level the D3 layer actually calls.
-    const sick = binFill(bin(60, 40, 2000), 1, 'combined');
+    const sick = binFill(bin(35, 40, 2000), 1, 'combined');
     const well = binFill(bin(97, 2, 2000), 1, 'combined');
     expect(sick.fillOpacity).toBeCloseTo(well.fillOpacity, 5);
     expect(sick.fill).not.toBe(well.fill);
