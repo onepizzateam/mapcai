@@ -2,7 +2,6 @@
 
 import { useFleetStore } from '@/store/fleetStore';
 import { RegionSummary } from './RegionSummary';
-import { BinDetail } from './BinDetail';
 import { CountrySummary } from './CountrySummary';
 import { HexDetail } from './HexDetail';
 
@@ -20,7 +19,7 @@ export function Sidebar() {
       className="flex h-full w-full flex-col overflow-y-auto bg-surface"
       aria-label="Fleet detail"
     >
-      {selectedBinId ? <BinDetail /> : selectedHex && selectedHex.bins.length > 1 ? <HexDetail hex={selectedHex} /> : selectedHex ? <BinDetail /> : selectedCountry ? <CountrySummary /> : <RegionSummary />}
+      {selectedBinId ? <CountrySummary /> : selectedHex && selectedHex.bins.length > 1 ? <HexDetail hex={selectedHex} /> : selectedCountry ? <CountrySummary /> : <RegionSummary />}
     </aside>
   );
 }

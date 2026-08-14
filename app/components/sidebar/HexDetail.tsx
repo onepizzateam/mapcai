@@ -35,7 +35,12 @@ export function HexDetail({ hex }: { hex: HexDatum }) {
             const per1k = bin.alerts_per_1k ?? (bin.vehicle_count ? (bin.open_exceptions / bin.vehicle_count) * 1000 : 0);
             return (
               <button key={bin.id} type="button" onClick={() => getFleetState().selectBin(bin.id)} className="flex items-center justify-between gap-2 border-b border-border py-3 text-left hover:bg-bg">
-                <span className="min-w-0 flex-1 truncate text-xs text-text-primary">{bin.region}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="block text-xs text-text-primary">{bin.region || 'Unknown area'}</span>
+                  <span className="block font-mono text-[10px] text-text-muted">
+                    {bin.lat.toFixed(3)}, {bin.lng.toFixed(3)}
+                  </span>
+                </span>
                 <span className="whitespace-nowrap text-[11px]" style={{ color }}><span aria-hidden="true">●</span> {soc.toFixed(0)}%</span>
                 <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-primary">{bin.vehicle_count.toLocaleString()}</span>
                 <span className="whitespace-nowrap text-[10px] text-text-muted">{per1k.toFixed(1)}/1k</span>
